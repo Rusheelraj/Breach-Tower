@@ -441,15 +441,15 @@ function TelegramAuthPanel({ hasCredentials }) {
   const credsMissing = !hasCredentials || (status && !status.has_credentials);
 
   return (
-    <div className="mt-4 border border-blue-900/30 rounded-lg overflow-hidden">
+    <div className="mt-4 border border-red-900/30 rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-blue-950/20 border-b border-blue-900/30">
+      <div className="flex items-center justify-between px-4 py-3 bg-red-950/20 border-b border-red-900/30">
         <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full shrink-0 ${step === "done" ? "bg-cyan-500" : "bg-gray-700"}`}></div>
+          <div className={`w-2 h-2 rounded-full shrink-0 ${step === "done" ? "bg-red-500" : "bg-gray-700"}`}></div>
           <p className="text-xs uppercase tracking-widest font-semibold text-gray-400">Session Authentication</p>
         </div>
         {step === "done" && (
-          <span className="text-[10px] uppercase tracking-widest font-semibold text-cyan-400">Authenticated</span>
+          <span className="text-[10px] uppercase tracking-widest font-semibold text-red-400">Authenticated</span>
         )}
         {step !== "done" && status !== null && (
           <span className="text-[10px] uppercase tracking-widest font-semibold text-gray-600">Not Authenticated</span>
@@ -468,11 +468,11 @@ function TelegramAuthPanel({ hasCredentials }) {
         {/* Already authenticated */}
         {step === "done" && (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 bg-cyan-500/5 border border-cyan-500/20 rounded px-3 py-2.5">
-              <svg className="w-3.5 h-3.5 text-cyan-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center gap-2 bg-red-500/5 border border-red-500/20 rounded px-3 py-2.5">
+              <svg className="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              <p className="text-xs text-cyan-400 font-mono">
+              <p className="text-xs text-red-400 font-mono">
                 {authedAs ? `Authenticated as ${authedAs}` : "Session active — Telegram monitor is running."}
               </p>
             </div>
@@ -501,13 +501,13 @@ function TelegramAuthPanel({ hasCredentials }) {
                 onChange={(e) => { setPhone(e.target.value); setMsg(""); }}
                 onKeyDown={(e) => e.key === "Enter" && handleSendCode()}
                 placeholder="+15551234567"
-                className="flex-1 bg-[#09090b] border border-[#1c1c1f] focus:border-cyan-600/40 text-gray-200 text-sm font-mono px-3 py-2 rounded outline-none placeholder-gray-700 transition-colors"
+                className="flex-1 bg-[#09090b] border border-[#1c1c1f] focus:border-red-600/40 text-gray-200 text-sm font-mono px-3 py-2 rounded outline-none placeholder-gray-700 transition-colors"
               />
               <button
                 type="button"
                 onClick={handleSendCode}
                 disabled={loading || !phone.trim()}
-                className="px-4 py-2 text-sm font-semibold bg-cyan-700 hover:bg-cyan-600 text-white rounded-lg transition-all shadow-sm disabled:opacity-40 shrink-0"
+                className="px-4 py-2 text-sm font-semibold bg-red-600 hover:bg-red-500 text-white rounded-lg transition-all shadow-sm disabled:opacity-40 shrink-0"
               >
                 {loading ? "Sending…" : "Send Code"}
               </button>
@@ -527,13 +527,13 @@ function TelegramAuthPanel({ hasCredentials }) {
                 onKeyDown={(e) => e.key === "Enter" && handleVerifyCode()}
                 placeholder="12345"
                 maxLength={10}
-                className="flex-1 bg-[#09090b] border border-[#1c1c1f] focus:border-cyan-600/40 text-gray-200 text-sm font-mono px-3 py-2 rounded outline-none placeholder-gray-700 transition-colors tracking-widest"
+                className="flex-1 bg-[#09090b] border border-[#1c1c1f] focus:border-red-600/40 text-gray-200 text-sm font-mono px-3 py-2 rounded outline-none placeholder-gray-700 transition-colors tracking-widest"
               />
               <button
                 type="button"
                 onClick={handleVerifyCode}
                 disabled={loading || !code.trim()}
-                className="px-4 py-2 text-sm font-semibold bg-cyan-700 hover:bg-cyan-600 text-white rounded-lg transition-all shadow-sm disabled:opacity-40 shrink-0"
+                className="px-4 py-2 text-sm font-semibold bg-red-600 hover:bg-red-500 text-white rounded-lg transition-all shadow-sm disabled:opacity-40 shrink-0"
               >
                 {loading ? "Verifying…" : "Verify"}
               </button>
@@ -552,7 +552,7 @@ function TelegramAuthPanel({ hasCredentials }) {
         {msg && (
           <p className={`text-xs font-mono ${
             msg.includes("fail") || msg.includes("Invalid") || msg.includes("Error") || msg.includes("must be")
-              ? "text-red-400" : "text-cyan-400"
+              ? "text-red-400" : "text-green-400"
           }`}>{msg}</p>
         )}
       </div>
@@ -895,7 +895,7 @@ export default function Settings() {
             </div>
           </Section>
 
-          <Section title="Telegram — Stealer Log Channels" accent="border-blue-900/30">
+          <Section title="Telegram — Stealer Log Channels" accent="border-red-900/30">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="API ID"   value={envForm.TELEGRAM_API_ID}   onChange={setEnv("TELEGRAM_API_ID")}   placeholder="12345678" sensitive={true} locked={locked} />
               <Field label="API Hash" value={envForm.TELEGRAM_API_HASH}  onChange={setEnv("TELEGRAM_API_HASH")} placeholder="21d11d9b…" sensitive={true} locked={locked} />

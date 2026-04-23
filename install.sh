@@ -430,6 +430,13 @@ build_and_start() {
     $COMPOSE_CMD down -v 2>/dev/null || true
   fi
 
+  # Ensure the Telegram session file exists as a file (not a directory).
+  # Docker will create it as a directory if absent — that breaks Telethon.
+  if [[ ! -f "$INSTALL_DIR/breachtower_session.session" ]]; then
+    touch "$INSTALL_DIR/breachtower_session.session"
+    info "Created empty Telegram session placeholder (authenticate via Settings after install)."
+  fi
+
   info "Building Docker images (this may take a few minutes on first run)..."
   $COMPOSE_CMD build --no-cache
 
