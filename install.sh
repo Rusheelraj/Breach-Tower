@@ -434,6 +434,7 @@ build_and_start() {
   # Docker will create it as a directory if absent — that breaks Telethon.
   if [[ ! -f "$INSTALL_DIR/breachtower_session.session" ]]; then
     touch "$INSTALL_DIR/breachtower_session.session"
+    chmod 600 "$INSTALL_DIR/breachtower_session.session"
     info "Created empty Telegram session placeholder (authenticate via Settings after install)."
   fi
 
@@ -534,6 +535,11 @@ main() {
       git -C "$INSTALL_DIR" reset --hard HEAD
       git -C "$INSTALL_DIR" clean -fd
       git -C "$INSTALL_DIR" pull --ff-only
+      # Ensure session file exists as a file (not directory) after pull
+      if [[ ! -f "$INSTALL_DIR/breachtower_session.session" ]]; then
+        touch "$INSTALL_DIR/breachtower_session.session"
+        chmod 600 "$INSTALL_DIR/breachtower_session.session"
+      fi
       get_compose_cmd
       cd "$INSTALL_DIR" && $COMPOSE_CMD up -d --build
       wait_for_healthy

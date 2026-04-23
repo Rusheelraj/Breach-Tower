@@ -16,8 +16,10 @@ auth_router = APIRouter(prefix="/api/telegram", tags=["telegram"])
 
 SESSION_FILE = "breachtower_session.session"
 
-# In-memory store for the pending auth client (one at a time)
-_pending_auth: dict = {}  # keys: "client", "phone_code_hash"
+# In-memory store for the pending auth client.
+# Keyed by a random session_token so concurrent requests don't clobber each other.
+# Structure: { session_token: {"client": ..., "phone": ..., "phone_code_hash": ...} }
+_pending_auth: dict = {}
 
 
 class ChannelOut(BaseModel):
@@ -109,6 +111,7 @@ class PhoneRequest(BaseModel):
 class CodeRequest(BaseModel):
     phone: str
     code: str
+    session_token: str  # returned by send-code, prevents concurrent auth clobbering
 
 
 @auth_router.get("/auth/status")
@@ -145,26 +148,33 @@ async def telegram_send_code(
     except ImportError:
         raise HTTPException(status_code=500, detail="telethon not installed. Run: pip install telethon")
 
-    # Clean up any previous pending auth
-    if _pending_auth.get("client"):
+    # Generate a unique session token for this auth attempt
+    import secrets as _secrets
+    session_token = _secrets.token_hex(16)
+
+    # Clean up any stale sessions from this same user (by admin user_id)
+    stale = [k for k, v in _pending_auth.items() if v.get("user_id") == current_user.id]
+    for k in stale:
         try:
-            await _pending_auth["client"].disconnect()
+            await _pending_auth[k]["client"].disconnect()
         except Exception:
             pass
-        _pending_auth.clear()
+        del _pending_auth[k]
 
     client = TelegramClient(SESSION_FILE, api_id, api_hash)
     await client.connect()
 
     try:
         result = await client.send_code_request(payload.phone)
-        _pending_auth["client"] = client
-        _pending_auth["phone"] = payload.phone
-        _pending_auth["phone_code_hash"] = result.phone_code_hash
-        return {"status": "code_sent", "message": f"Code sent to {payload.phone}"}
+        _pending_auth[session_token] = {
+            "client": client,
+            "phone": payload.phone,
+            "phone_code_hash": result.phone_code_hash,
+            "user_id": current_user.id,
+        }
+        return {"status": "code_sent", "session_token": session_token, "message": f"Code sent to {payload.phone}"}
     except Exception as e:
         await client.disconnect()
-        _pending_auth.clear()
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -175,11 +185,12 @@ async def telegram_verify_code(
     current_user: User = Depends(_require_admin),
 ):
     """Submit the received code to complete Telegram authentication."""
-    if not _pending_auth.get("client"):
+    session = _pending_auth.get(payload.session_token)
+    if not session:
         raise HTTPException(status_code=400, detail="No pending auth session. Send phone number first.")
 
-    client = _pending_auth["client"]
-    phone_code_hash = _pending_auth["phone_code_hash"]
+    client = session["client"]
+    phone_code_hash = session["phone_code_hash"]
 
     try:
         await client.sign_in(
@@ -189,7 +200,7 @@ async def telegram_verify_code(
         )
         me = await client.get_me()
         await client.disconnect()
-        _pending_auth.clear()
+        del _pending_auth[payload.session_token]
 
         name = f"{me.first_name or ''} (@{me.username or 'unknown'})".strip()
         log_audit(db, current_user, "telegram_authenticated", f"Authenticated as {name}")
@@ -203,8 +214,11 @@ async def telegram_verify_code(
         # Don't disconnect on wrong code — let user retry
         if "PHONE_CODE_INVALID" in err or "CODE_INVALID" in err:
             raise HTTPException(status_code=400, detail="Invalid code. Please try again.")
-        await client.disconnect()
-        _pending_auth.clear()
+        try:
+            await client.disconnect()
+        except Exception:
+            pass
+        _pending_auth.pop(payload.session_token, None)
         raise HTTPException(status_code=400, detail=err)
 
 

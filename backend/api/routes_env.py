@@ -1,4 +1,5 @@
 import os
+import tempfile
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
@@ -81,7 +82,15 @@ def _write_env(updates: dict[str, str]) -> None:
         if key not in written:
             new_lines.append(f"{key}={value}")
 
-    ENV_PATH.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    # Atomic write — write to temp file then rename to avoid corruption on kill
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=ENV_PATH.parent, prefix=".env.tmp.")
+    try:
+        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+            f.write("\n".join(new_lines) + "\n")
+        os.replace(tmp_path, ENV_PATH)
+    except Exception:
+        os.unlink(tmp_path)
+        raise
 
 
 class EnvOut(BaseModel):

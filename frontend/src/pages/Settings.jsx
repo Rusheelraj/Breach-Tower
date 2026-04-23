@@ -379,12 +379,13 @@ function StatusPanel({ envForm, scanStatus, stats, lastRefresh }) {
 
 function TelegramAuthPanel({ hasCredentials }) {
   const [status, setStatus]     = useState(null);   // null | { authenticated, has_credentials }
-  const [step, setStep]         = useState("idle");  // idle | phone | code | done | error
-  const [phone, setPhone]       = useState("");
-  const [code, setCode]         = useState("");
-  const [msg, setMsg]           = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [authedAs, setAuthedAs] = useState("");
+  const [step, setStep]           = useState("idle");  // idle | phone | code | done | error
+  const [phone, setPhone]         = useState("");
+  const [code, setCode]           = useState("");
+  const [sessionToken, setSessionToken] = useState("");
+  const [msg, setMsg]             = useState("");
+  const [loading, setLoading]     = useState(false);
+  const [authedAs, setAuthedAs]   = useState("");
 
   async function loadStatus() {
     try {
@@ -402,7 +403,8 @@ function TelegramAuthPanel({ hasCredentials }) {
     if (!phone.trim()) { setMsg("Enter your phone number (e.g. +15551234567)."); return; }
     setLoading(true); setMsg("");
     try {
-      await api.telegramSendCode(phone.trim());
+      const res = await api.telegramSendCode(phone.trim());
+      setSessionToken(res.session_token || "");
       setStep("code");
       setMsg("Code sent! Check your Telegram app.");
     } catch (e) {
@@ -414,7 +416,7 @@ function TelegramAuthPanel({ hasCredentials }) {
     if (!code.trim()) { setMsg("Enter the code from Telegram."); return; }
     setLoading(true); setMsg("");
     try {
-      const res = await api.telegramVerifyCode(phone.trim(), code.trim());
+      const res = await api.telegramVerifyCode(phone.trim(), code.trim(), sessionToken);
       setAuthedAs(res.user || "");
       setStep("done");
       setMsg(res.message || "Authenticated successfully.");
@@ -543,7 +545,7 @@ function TelegramAuthPanel({ hasCredentials }) {
             </div>
             <button
               type="button"
-              onClick={() => { setStep("idle"); setCode(""); setMsg(""); }}
+              onClick={() => { setStep("idle"); setCode(""); setMsg(""); setSessionToken(""); }}
               className="text-xs text-gray-600 hover:text-gray-400 font-mono transition-colors"
             >
               ← Use a different phone number

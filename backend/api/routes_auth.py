@@ -19,14 +19,14 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 # ── crypto config ─────────────────────────────────────────────────────────────
 SECRET_KEY = os.getenv("JWT_SECRET", "")
-if not SECRET_KEY:
+if not SECRET_KEY or len(SECRET_KEY) < 32:
     import logging as _logging
     _log = _logging.getLogger(__name__)
     if os.getenv("ENVIRONMENT", "development").lower() == "production":
-        # Fail fast in production — a missing JWT_SECRET is a critical misconfiguration
+        # Fail fast in production — a missing or weak JWT_SECRET is a critical misconfiguration
         raise RuntimeError(
-            "FATAL: JWT_SECRET is not set. "
-            "Set a strong random value in .env before running in production."
+            "FATAL: JWT_SECRET is not set or is too short (minimum 32 characters). "
+            "Generate one with: python -c \"import secrets; print(secrets.token_hex(64))\""
         )
     import secrets as _secrets
     SECRET_KEY = _secrets.token_hex(64)

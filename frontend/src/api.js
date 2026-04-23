@@ -99,7 +99,7 @@ export const api = {
   // Telegram session auth
   getTelegramAuthStatus:  () => request("/telegram/auth/status"),
   telegramSendCode:       (phone) => request("/telegram/auth/send-code", { method: "POST", body: JSON.stringify({ phone }) }),
-  telegramVerifyCode:     (phone, code) => request("/telegram/auth/verify-code", { method: "POST", body: JSON.stringify({ phone, code }) }),
+  telegramVerifyCode:     (phone, code, session_token) => request("/telegram/auth/verify-code", { method: "POST", body: JSON.stringify({ phone, code, session_token }) }),
   telegramRevokeSession:  () => request("/telegram/auth/session", { method: "DELETE" }),
 
   // Scheduled scans
