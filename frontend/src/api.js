@@ -96,6 +96,12 @@ export const api = {
   toggleTelegramChannel:  (id) => request(`/telegram-channels/${id}`, { method: "PATCH" }),
   deleteTelegramChannel:  (id) => request(`/telegram-channels/${id}`, { method: "DELETE" }),
 
+  // Telegram session auth
+  getTelegramAuthStatus:  () => request("/telegram/auth/status"),
+  telegramSendCode:       (phone) => request("/telegram/auth/send-code", { method: "POST", body: JSON.stringify({ phone }) }),
+  telegramVerifyCode:     (phone, code) => request("/telegram/auth/verify-code", { method: "POST", body: JSON.stringify({ phone, code }) }),
+  telegramRevokeSession:  () => request("/telegram/auth/session", { method: "DELETE" }),
+
   // Scheduled scans
   getScheduledScans:   () => request("/scheduled-scans"),
   scheduleScan:        (body) => request("/scheduled-scans", { method: "POST", body: JSON.stringify(body) }),

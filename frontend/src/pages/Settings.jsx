@@ -375,6 +375,191 @@ function StatusPanel({ envForm, scanStatus, stats, lastRefresh }) {
   );
 }
 
+// ── TelegramAuthPanel ─────────────────────────────────────────────────────────
+
+function TelegramAuthPanel({ hasCredentials }) {
+  const [status, setStatus]     = useState(null);   // null | { authenticated, has_credentials }
+  const [step, setStep]         = useState("idle");  // idle | phone | code | done | error
+  const [phone, setPhone]       = useState("");
+  const [code, setCode]         = useState("");
+  const [msg, setMsg]           = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [authedAs, setAuthedAs] = useState("");
+
+  async function loadStatus() {
+    try {
+      const s = await api.getTelegramAuthStatus();
+      setStatus(s);
+      if (s.authenticated) setStep("done");
+    } catch {
+      setStatus({ authenticated: false, has_credentials: hasCredentials });
+    }
+  }
+
+  useEffect(() => { loadStatus(); }, []);
+
+  async function handleSendCode() {
+    if (!phone.trim()) { setMsg("Enter your phone number (e.g. +15551234567)."); return; }
+    setLoading(true); setMsg("");
+    try {
+      await api.telegramSendCode(phone.trim());
+      setStep("code");
+      setMsg("Code sent! Check your Telegram app.");
+    } catch (e) {
+      setMsg(e.message || "Failed to send code.");
+    } finally { setLoading(false); }
+  }
+
+  async function handleVerifyCode() {
+    if (!code.trim()) { setMsg("Enter the code from Telegram."); return; }
+    setLoading(true); setMsg("");
+    try {
+      const res = await api.telegramVerifyCode(phone.trim(), code.trim());
+      setAuthedAs(res.user || "");
+      setStep("done");
+      setMsg(res.message || "Authenticated successfully.");
+      await loadStatus();
+    } catch (e) {
+      setMsg(e.message || "Invalid code.");
+    } finally { setLoading(false); }
+  }
+
+  async function handleRevoke() {
+    if (!confirm("Remove Telegram session? The monitor will stop working until re-authenticated.")) return;
+    setLoading(true); setMsg("");
+    try {
+      const res = await api.telegramRevokeSession();
+      setStep("idle");
+      setCode(""); setPhone("");
+      setMsg(res.message || "Session revoked.");
+      await loadStatus();
+    } catch (e) {
+      setMsg(e.message || "Failed to revoke session.");
+    } finally { setLoading(false); }
+  }
+
+  const credsMissing = !hasCredentials || (status && !status.has_credentials);
+
+  return (
+    <div className="mt-4 border border-blue-900/30 rounded-lg overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-blue-950/20 border-b border-blue-900/30">
+        <div className="flex items-center gap-3">
+          <div className={`w-2 h-2 rounded-full shrink-0 ${step === "done" ? "bg-cyan-500" : "bg-gray-700"}`}></div>
+          <p className="text-xs uppercase tracking-widest font-semibold text-gray-400">Session Authentication</p>
+        </div>
+        {step === "done" && (
+          <span className="text-[10px] uppercase tracking-widest font-semibold text-cyan-400">Authenticated</span>
+        )}
+        {step !== "done" && status !== null && (
+          <span className="text-[10px] uppercase tracking-widest font-semibold text-gray-600">Not Authenticated</span>
+        )}
+      </div>
+
+      <div className="p-4 space-y-3">
+        {/* Creds missing warning */}
+        {credsMissing && (
+          <div className="flex items-start gap-2 bg-yellow-500/5 border border-yellow-500/20 rounded px-3 py-2.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 shrink-0 mt-1"></span>
+            <p className="text-xs text-yellow-500/80 font-mono">Set API ID and API Hash above and save before authenticating.</p>
+          </div>
+        )}
+
+        {/* Already authenticated */}
+        {step === "done" && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 bg-cyan-500/5 border border-cyan-500/20 rounded px-3 py-2.5">
+              <svg className="w-3.5 h-3.5 text-cyan-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <p className="text-xs text-cyan-400 font-mono">
+                {authedAs ? `Authenticated as ${authedAs}` : "Session active — Telegram monitor is running."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleRevoke}
+              disabled={loading}
+              className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-400 hover:text-red-300 bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 rounded transition-all disabled:opacity-40"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              {loading ? "Revoking…" : "Revoke Session"}
+            </button>
+          </div>
+        )}
+
+        {/* Step: enter phone */}
+        {(step === "idle" || step === "phone") && !credsMissing && (
+          <div className="space-y-2">
+            <p className="text-xs text-gray-600 font-mono">Enter the phone number linked to your Telegram account to receive a login code.</p>
+            <div className="flex gap-2">
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => { setPhone(e.target.value); setMsg(""); }}
+                onKeyDown={(e) => e.key === "Enter" && handleSendCode()}
+                placeholder="+15551234567"
+                className="flex-1 bg-[#09090b] border border-[#1c1c1f] focus:border-cyan-600/40 text-gray-200 text-sm font-mono px-3 py-2 rounded outline-none placeholder-gray-700 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={handleSendCode}
+                disabled={loading || !phone.trim()}
+                className="px-4 py-2 text-sm font-semibold bg-cyan-700 hover:bg-cyan-600 text-white rounded-lg transition-all shadow-sm disabled:opacity-40 shrink-0"
+              >
+                {loading ? "Sending…" : "Send Code"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step: enter code */}
+        {step === "code" && (
+          <div className="space-y-2">
+            <p className="text-xs text-gray-600 font-mono">Check your Telegram app for the login code and enter it below.</p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={code}
+                onChange={(e) => { setCode(e.target.value); setMsg(""); }}
+                onKeyDown={(e) => e.key === "Enter" && handleVerifyCode()}
+                placeholder="12345"
+                maxLength={10}
+                className="flex-1 bg-[#09090b] border border-[#1c1c1f] focus:border-cyan-600/40 text-gray-200 text-sm font-mono px-3 py-2 rounded outline-none placeholder-gray-700 transition-colors tracking-widest"
+              />
+              <button
+                type="button"
+                onClick={handleVerifyCode}
+                disabled={loading || !code.trim()}
+                className="px-4 py-2 text-sm font-semibold bg-cyan-700 hover:bg-cyan-600 text-white rounded-lg transition-all shadow-sm disabled:opacity-40 shrink-0"
+              >
+                {loading ? "Verifying…" : "Verify"}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setStep("idle"); setCode(""); setMsg(""); }}
+              className="text-xs text-gray-600 hover:text-gray-400 font-mono transition-colors"
+            >
+              ← Use a different phone number
+            </button>
+          </div>
+        )}
+
+        {/* Status message */}
+        {msg && (
+          <p className={`text-xs font-mono ${
+            msg.includes("fail") || msg.includes("Invalid") || msg.includes("Error") || msg.includes("must be")
+              ? "text-red-400" : "text-cyan-400"
+          }`}>{msg}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function Settings() {
@@ -715,7 +900,10 @@ export default function Settings() {
               <Field label="API ID"   value={envForm.TELEGRAM_API_ID}   onChange={setEnv("TELEGRAM_API_ID")}   placeholder="12345678" sensitive={true} locked={locked} />
               <Field label="API Hash" value={envForm.TELEGRAM_API_HASH}  onChange={setEnv("TELEGRAM_API_HASH")} placeholder="21d11d9b…" sensitive={true} locked={locked} />
             </div>
-            <p className="text-xs text-gray-700 font-mono mt-3">Obtain credentials at my.telegram.org — requires one-time CLI authentication.</p>
+            <p className="text-xs text-gray-700 font-mono mt-3">
+              Obtain credentials at <span className="text-gray-500">my.telegram.org</span> — save them above, then authenticate your account below.
+            </p>
+            <TelegramAuthPanel hasCredentials={!!(envForm.TELEGRAM_API_ID && envForm.TELEGRAM_API_HASH)} />
           </Section>
 
           <Section title="Telegram — Monitored Channels">
