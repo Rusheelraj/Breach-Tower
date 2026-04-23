@@ -61,9 +61,14 @@ def run(db: Session, targets: list[Target]):
 
 def _query(db: Session, target: Target, term: str):
     if LEAKCHECK_API_KEY:
-        _query_authenticated(db, target, term)
-    else:
-        _query_public(db, target, term)
+        # Try authenticated first — fall back to public if key is invalid
+        try:
+            result = _query_authenticated(db, target, term)
+            if result is not False:
+                return
+        except Exception as e:
+            logger.error("LeakCheck auth error: %s — falling back to public endpoint", e)
+    _query_public(db, target, term)
 
 
 def _query_authenticated(db: Session, target: Target, term: str):
