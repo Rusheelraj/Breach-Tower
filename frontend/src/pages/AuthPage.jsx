@@ -3,7 +3,7 @@ import { useMsal } from "@azure/msal-react";
 import { useAuth } from "../auth/AuthContext";
 import { SSO_ENABLED, loginRequest } from "../auth/msalConfig";
 
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const BASE = import.meta.env.VITE_API_URL || "/api";
 
 async function apiPost(path, body) {
   const res = await fetch(`${BASE}${path}`, {
