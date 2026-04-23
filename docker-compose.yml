@@ -26,6 +26,8 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://admin:${DB_PASSWORD}@postgres:5432/breachtower
+    volumes:
+      - ./breachtower_session.session:/app/breachtower_session.session
     depends_on:
       postgres:
         condition: service_healthy
