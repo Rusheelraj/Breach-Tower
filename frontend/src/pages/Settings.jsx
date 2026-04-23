@@ -438,7 +438,10 @@ function TelegramAuthPanel({ hasCredentials }) {
     } finally { setLoading(false); }
   }
 
-  const credsMissing = !hasCredentials || (status && !status.has_credentials);
+  // Use the prop (derived from envForm) as the source of truth.
+  // status.has_credentials reflects the backend's startup-time value
+  // which may be stale if keys were just saved — the prop is always live.
+  const credsMissing = !hasCredentials;
 
   return (
     <div className="mt-4 border border-red-900/30 rounded-lg overflow-hidden">

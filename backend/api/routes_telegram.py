@@ -115,7 +115,8 @@ class CodeRequest(BaseModel):
 def telegram_auth_status(current_user: User = Depends(_require_admin)):
     """Check whether a valid Telegram session file exists."""
     authenticated = os.path.exists(SESSION_FILE) and os.path.getsize(SESSION_FILE) > 0
-    has_credentials = bool(TELEGRAM_API_ID and TELEGRAM_API_HASH)
+    # Read live from env — module-level imports are frozen at startup
+    has_credentials = bool(os.getenv("TELEGRAM_API_ID") and os.getenv("TELEGRAM_API_HASH"))
     return {
         "authenticated": authenticated,
         "has_credentials": has_credentials,
@@ -129,8 +130,15 @@ async def telegram_send_code(
     current_user: User = Depends(_require_admin),
 ):
     """Send Telegram login code to the given phone number."""
-    if not TELEGRAM_API_ID or not TELEGRAM_API_HASH:
+    # Read live from env — module-level imports are frozen at startup
+    api_id_str = os.getenv("TELEGRAM_API_ID", "")
+    api_hash   = os.getenv("TELEGRAM_API_HASH", "")
+    if not api_id_str or not api_hash:
         raise HTTPException(status_code=400, detail="TELEGRAM_API_ID and TELEGRAM_API_HASH must be set in .env first.")
+    try:
+        api_id = int(api_id_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="TELEGRAM_API_ID must be a number.")
 
     try:
         from telethon import TelegramClient
@@ -145,7 +153,7 @@ async def telegram_send_code(
             pass
         _pending_auth.clear()
 
-    client = TelegramClient(SESSION_FILE, TELEGRAM_API_ID, TELEGRAM_API_HASH)
+    client = TelegramClient(SESSION_FILE, api_id, api_hash)
     await client.connect()
 
     try:
