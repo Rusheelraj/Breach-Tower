@@ -83,17 +83,17 @@ def _query_authenticated(db: Session, target: Target, term: str):
     resp = requests.get(url, headers=headers, timeout=15)
 
     if resp.status_code == 404:
-        logger.debug("LeakCheck: no results for %s", term)
-        return
+        logger.debug("LeakCheck (auth): no results for %s", term)
+        return  # Definitive "not found" — no need to try public
     if resp.status_code == 401:
-        logger.error("LeakCheck: invalid API key — check LEAKCHECK_API_KEY in .env")
-        return
+        logger.warning("LeakCheck: invalid/expired API key — falling back to public endpoint")
+        return False  # Signal caller to try public endpoint
     if resp.status_code == 429:
-        logger.warning("LeakCheck: rate limit reached")
-        return
+        logger.warning("LeakCheck (auth): rate limit reached — falling back to public endpoint")
+        return False  # Try public which has its own quota
     if not resp.ok:
-        logger.error("LeakCheck: request failed (%s) — %s", resp.status_code, resp.text[:200])
-        return
+        logger.error("LeakCheck (auth): request failed (%s) — %s", resp.status_code, resp.text[:200])
+        return False  # Unknown error — let public endpoint try
 
     data = resp.json()
     if not data.get("success"):
