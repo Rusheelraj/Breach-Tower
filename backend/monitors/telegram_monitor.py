@@ -60,6 +60,17 @@ async def _async_run(db: Session, targets: list[Target], channels: list[str] = N
         logger.error("telethon not installed — run: pip install telethon")
         return
 
+    # Check for existing session file — never prompt interactively during a scan
+    import os
+    session_file = "breachtower_session.session"
+    if not os.path.exists(session_file):
+        logger.warning(
+            "Telegram: no session file found (%s). "
+            "Run 'python -m backend.monitors.telegram_monitor' once interactively to authenticate.",
+            session_file,
+        )
+        return
+
     domain_set = {t.domain.lower() for t in targets if t.domain}
     target_map = {t.domain.lower(): t for t in targets if t.domain}
 
@@ -134,3 +145,16 @@ def _register_match(seen, domain_set, target_map, credential, data_type, descrip
     # Prefer plaintext_password entry over email_only if both match
     if key not in seen or data_type.get("plaintext_password"):
         seen[key] = {"data_type": data_type, "description": description, "raw": raw}
+
+
+if __name__ == "__main__":
+    # Run this once interactively to create the session file:
+    #   python -m backend.monitors.telegram_monitor
+    async def _auth():
+        from telethon import TelegramClient
+        print("Authenticating Telegram session...")
+        async with TelegramClient("breachtower_session", TELEGRAM_API_ID, TELEGRAM_API_HASH) as client:
+            me = await client.get_me()
+            print(f"Authenticated as: {me.first_name} (@{me.username})")
+            print("Session file saved. Telegram monitor will now work in scans.")
+    asyncio.run(_auth())
