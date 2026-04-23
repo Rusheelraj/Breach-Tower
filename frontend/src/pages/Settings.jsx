@@ -412,12 +412,10 @@ export default function Settings() {
   const [showChangeVault, setShowChangeVault] = useState(false);
   const lockTimerRef = useRef(null);
 
-  const SCAN_API = `${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/scan/status`;
-
   async function loadAll() {
     const [db, env, scan, st, tg] = await Promise.all([
       api.getSettings(), api.getEnv(),
-      fetch(SCAN_API).then((r) => r.json()).catch(() => null),
+      api.getScanStatus().catch(() => null),
       api.getStats().catch(() => null),
       api.getTelegramChannels().catch(() => []),
     ]);
@@ -466,7 +464,7 @@ export default function Settings() {
   // Poll scan status every 5s when on this page
   useEffect(() => {
     const t = setInterval(async () => {
-      const scan = await fetch(SCAN_API).then((r) => r.json()).catch(() => null);
+      const scan = await api.getScanStatus().catch(() => null);
       setScanStatus(scan);
       if (scan && !scan.running) {
         const st = await api.getStats().catch(() => null);

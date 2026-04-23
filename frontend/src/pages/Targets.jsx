@@ -150,7 +150,7 @@ function TargetRow({ target: t, onDelete, onScanStart, globalScanning, globalSta
     } finally {
       const poll = setInterval(async () => {
         try {
-          const s = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/scan/status`).then((r) => r.json());
+          const s = await api.getScanStatus();
           if (!s.running) {
             clearInterval(poll);
             setRowScanning(false);
@@ -269,7 +269,7 @@ function ScanProgress({ onDone }) {
   useEffect(() => {
     intervalRef.current = setInterval(async () => {
       try {
-        const s = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/scan/status`).then((r) => r.json());
+        const s = await api.getScanStatus();
         setStatus(s);
         if (!s.running) {
           clearInterval(intervalRef.current);
