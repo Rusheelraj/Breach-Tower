@@ -1,0 +1,39 @@
+# Python
+*.pyc
+*.pyo
+__pycache__/
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+*.pyo
+
+# Environment / secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+
+# Telethon sessions
+breachtower_session*
+breachtower_session.session
+breachtower_session.session-journal
+*.session
+*.session-journal
+
+# Frontend
+node_modules/
+frontend/dist/
+
+# DB
+*.db
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

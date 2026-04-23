@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body, #root {
+    background-color: #09090b;
+    color: #e4e4e7;
+    font-family: "DM Sans", system-ui, sans-serif;
+    font-size: 17px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .font-mono {
+    font-family: "DM Mono", ui-monospace, monospace !important;
+  }
+
+  input, textarea, select {
+    background-color: #09090b;
+    color: #d4d4d8;
+    color-scheme: dark;
+    font-family: "DM Sans", system-ui, sans-serif;
+  }
+
+  option {
+    background-color: #111113;
+    color: #d4d4d8;
+  }
+
+  /* Compact buttons — smaller font + tight padding, excludes full-width nav items */
+  button[class*="rounded-lg"][class*="font-semibold"]:not([class*="w-full"]),
+  button[class*="rounded-lg"][class*="font-medium"]:not([class*="w-full"]) {
+    font-size: 0.75rem !important;   /* 12px */
+    line-height: 1rem !important;
+    padding-top: 0.3rem !important;
+    padding-bottom: 0.3rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: #09090b; }
+  ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+}
