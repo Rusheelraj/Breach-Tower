@@ -1,6 +1,14 @@
-# Breach Tower
+<p align="center">
+  <img src="frontend/public/logo-512.png" alt="Breach Tower" width="100" />
+</p>
 
-> **Self-hosted dark web credential monitoring for small businesses.**
+<h1 align="center">Breach Tower</h1>
+
+<p align="center">
+  <strong>Self-hosted dark web credential monitoring for small businesses.</strong>
+</p>
+
+---
 
 Breach Tower continuously hunts breach databases, paste sites, stealer log Telegram channels, and live CTI threat feeds for your company's exposed credentials — then delivers actionable alerts before attackers can exploit them.
 
