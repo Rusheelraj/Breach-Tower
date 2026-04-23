@@ -8,7 +8,7 @@ import logging
 import requests
 from datetime import datetime
 from sqlalchemy.orm import Session
-from backend.config import INTELX_API_KEY
+import os
 from backend.db.models import Target, Alert
 from backend.scoring.severity import AlertData, calculate_severity, get_remediation
 from backend.monitors.dedup import is_duplicate, make_alert
@@ -16,11 +16,10 @@ from backend.monitors.dedup import is_duplicate, make_alert
 logger = logging.getLogger(__name__)
 
 INTELX_BASE = "https://free.intelx.io"
-HEADERS = {"x-key": INTELX_API_KEY}
 
 
 def run(db: Session, targets: list[Target]):
-    if not INTELX_API_KEY:
+    if not os.getenv("INTELX_API_KEY"):
         logger.info("IntelX API key not configured — skipping")
         return
     for target in targets:
@@ -33,6 +32,7 @@ def run(db: Session, targets: list[Target]):
 
 
 def _search_domain(db: Session, target: Target):
+    headers = {"x-key": os.getenv("INTELX_API_KEY", "")}
     # Step 1: submit search
     payload = {
         "term": target.domain,
@@ -46,7 +46,7 @@ def _search_domain(db: Session, target: Target):
         "media": 0,
         "terminate": [],
     }
-    resp = requests.post(f"{INTELX_BASE}/intelligent/search", json=payload, headers=HEADERS, timeout=15)
+    resp = requests.post(f"{INTELX_BASE}/intelligent/search", json=payload, headers=headers, timeout=15)
     resp.raise_for_status()
     search_id = resp.json().get("id")
     if not search_id:
@@ -57,7 +57,7 @@ def _search_domain(db: Session, target: Target):
     result_resp = requests.get(
         f"{INTELX_BASE}/intelligent/search/result",
         params={"id": search_id, "limit": 10},
-        headers=HEADERS,
+        headers=headers,
         timeout=15,
     )
     result_resp.raise_for_status()

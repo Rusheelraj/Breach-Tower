@@ -7,7 +7,7 @@ import logging
 import requests
 from datetime import datetime
 from sqlalchemy.orm import Session
-from backend.config import LEAKLOOKUP_API_KEY
+import os
 from backend.db.models import Target, Alert
 from backend.scoring.severity import AlertData, calculate_severity, get_remediation
 from backend.monitors.dedup import is_duplicate, make_alert
@@ -18,7 +18,7 @@ LEAKLOOKUP_URL = "https://leak-lookup.com/api/search"
 
 
 def run(db: Session, targets: list[Target]):
-    if not LEAKLOOKUP_API_KEY:
+    if not os.getenv("LEAKLOOKUP_API_KEY"):
         logger.warning("Leak-Lookup API key not configured — skipping")
         return
     for target in targets:
@@ -34,7 +34,7 @@ def run(db: Session, targets: list[Target]):
 def _search(db: Session, target: Target, search_type: str, query: str):
     resp = requests.post(
         LEAKLOOKUP_URL,
-        data={"key": LEAKLOOKUP_API_KEY, "type": search_type, "query": query},
+        data={"key": os.getenv("LEAKLOOKUP_API_KEY", ""), "type": search_type, "query": query},
         timeout=15,
     )
     resp.raise_for_status()

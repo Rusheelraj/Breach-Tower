@@ -11,7 +11,7 @@ import logging
 import asyncio
 from datetime import datetime
 from sqlalchemy.orm import Session
-from backend.config import TELEGRAM_API_ID, TELEGRAM_API_HASH
+import os
 from backend.db.models import Target, Alert, TelegramChannel
 from backend.scoring.severity import AlertData, calculate_severity, get_remediation
 from backend.monitors.dedup import is_duplicate, make_alert
@@ -34,6 +34,8 @@ EMAIL_PATTERN = re.compile(r"[\w.\-+]+@[\w.\-]+\.[a-zA-Z]{2,}", re.IGNORECASE)
 
 
 def run(db: Session, targets: list[Target]):
+    TELEGRAM_API_ID   = int(os.getenv("TELEGRAM_API_ID") or "0")
+    TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH", "")
     if not TELEGRAM_API_ID or not TELEGRAM_API_HASH:
         logger.warning("Telegram API credentials not configured — skipping")
         return
@@ -79,7 +81,9 @@ async def _async_run(db: Session, targets: list[Target], channels: list[str] = N
         return
 
     active_channels = channels or PUBLIC_CHANNELS
-    async with TelegramClient("breachtower_session", TELEGRAM_API_ID, TELEGRAM_API_HASH) as client:
+    _api_id   = int(os.getenv("TELEGRAM_API_ID") or "0")
+    _api_hash = os.getenv("TELEGRAM_API_HASH", "")
+    async with TelegramClient("breachtower_session", _api_id, _api_hash) as client:
         for channel in active_channels:
             logger.info("Telegram: scanning channel %s", channel)
             try:
@@ -153,7 +157,7 @@ if __name__ == "__main__":
     async def _auth():
         from telethon import TelegramClient
         print("Authenticating Telegram session...")
-        async with TelegramClient("breachtower_session", TELEGRAM_API_ID, TELEGRAM_API_HASH) as client:
+        async with TelegramClient("breachtower_session", int(os.getenv("TELEGRAM_API_ID") or "0"), os.getenv("TELEGRAM_API_HASH", "")) as client:
             me = await client.get_me()
             print(f"Authenticated as: {me.first_name} (@{me.username})")
             print("Session file saved. Telegram monitor will now work in scans.")

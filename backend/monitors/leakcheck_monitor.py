@@ -29,7 +29,7 @@ import logging
 import requests
 from datetime import datetime
 from sqlalchemy.orm import Session
-from backend.config import LEAKCHECK_API_KEY
+import os
 from backend.db.models import Target
 from backend.scoring.severity import AlertData, calculate_severity, get_remediation
 from backend.monitors.dedup import is_duplicate, make_alert
@@ -60,7 +60,7 @@ def run(db: Session, targets: list[Target]):
 
 
 def _query(db: Session, target: Target, term: str):
-    if LEAKCHECK_API_KEY:
+    if os.getenv("LEAKCHECK_API_KEY"):
         # Try authenticated first — fall back to public if key is invalid
         try:
             result = _query_authenticated(db, target, term)
@@ -76,7 +76,7 @@ def _query_authenticated(db: Session, target: Target, term: str):
     quoted = requests.utils.quote(term, safe="")
     url = LEAKCHECK_AUTH_URL.format(query=quoted)
     headers = {
-        "X-API-Key": LEAKCHECK_API_KEY,
+        "X-API-Key": os.getenv("LEAKCHECK_API_KEY", ""),
         "Accept": "application/json",
     }
 

@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from backend.db.models import Target
 from backend.scoring.severity import AlertData, calculate_severity, get_remediation
 from backend.monitors.dedup import is_duplicate, make_alert
-from backend.config import PASTEBIN_API_KEY, BREACH_DIRECTORY_KEY
+import os
 
 logger = logging.getLogger(__name__)
 

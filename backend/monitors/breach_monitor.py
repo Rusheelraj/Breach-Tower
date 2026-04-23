@@ -2,7 +2,7 @@ import logging
 import requests
 from datetime import datetime
 from sqlalchemy.orm import Session
-from backend.config import BREACH_DIRECTORY_KEY
+import os
 from backend.db.models import Target, Alert
 from backend.scoring.severity import AlertData, calculate_severity, get_remediation
 from backend.monitors.dedup import is_duplicate, make_alert
@@ -13,7 +13,7 @@ BD_BASE = "https://breachdirectory.p.rapidapi.com"
 
 def _get_headers():
     return {
-        "x-rapidapi-key": BREACH_DIRECTORY_KEY,
+        "x-rapidapi-key": os.getenv("BREACH_DIRECTORY_KEY", ""),
         "x-rapidapi-host": "breachdirectory.p.rapidapi.com",
         "Content-Type": "application/json",
     }
