@@ -1,0 +1,25 @@
+# Development override — only starts postgres
+# Usage: docker-compose -f docker-compose.dev.yml up -d
+# Then run backend and frontend manually:
+#   uvicorn backend.main:app --reload --port 8000
+#   cd frontend && npm run dev
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: breachtower
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-REMOVED_DEFAULT}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d breachtower"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
