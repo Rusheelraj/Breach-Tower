@@ -161,6 +161,7 @@ def _query_authenticated(db: Session, target: Target, term: str):
 
 def _query_public(db: Session, target: Target, term: str):
     """Fallback: free public endpoint — 50 req/day, max 3 sources, no passwords."""
+    logger.info("LeakCheck (public): querying %s", term)
     quoted = requests.utils.quote(term, safe="")
     url = LEAKCHECK_FREE_URL.format(query=quoted)
     headers = {"Accept": "application/json"}
@@ -168,6 +169,7 @@ def _query_public(db: Session, target: Target, term: str):
     resp = requests.get(url, headers=headers, timeout=15)
 
     if resp.status_code == 404:
+        logger.debug("LeakCheck (public): 404 for %s", term)
         return
     if resp.status_code == 429:
         logger.warning("LeakCheck: free tier rate limit reached (50/day)")
@@ -178,10 +180,12 @@ def _query_public(db: Session, target: Target, term: str):
 
     data = resp.json()
     if not data.get("success"):
+        logger.debug("LeakCheck (public): no results for %s — %s", term, data.get("error", ""))
         return
 
     found_count = data.get("found", 0)
     if not found_count:
+        logger.debug("LeakCheck (public): 0 breaches for %s", term)
         return
 
     sources = data.get("sources", [])
