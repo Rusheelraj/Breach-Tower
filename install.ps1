@@ -76,42 +76,66 @@ function Require-Admin {
     }
 }
 
-# -- Resolve winget path (it lives in a per-user location, invisible to SYSTEM) -
+# -- Resolve winget (winget.exe lives in WindowsApps which is ACL-locked even  -
+# -- for Administrators — we must use the per-user alias or cmd /c workaround) -
+$script:WingetExe = $null   # "cmd" means route through cmd /c winget
+
 function Get-WingetPath {
-    # 1. Already on PATH (normal user session)
+    # 1. Already on PATH in this session (normal non-elevated sessions)
     $cmd = Get-Command winget -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }
 
-    # 2. Common per-user install location (WindowsApps — visible even as SYSTEM)
+    # 2. Per-user alias stubs — these ARE executable even from elevated sessions
+    #    because they live in the user's own AppData, not in the locked WindowsApps dir.
+    $candidates = @()
+
+    # Current session's LOCALAPPDATA
     $localAppData = [System.Environment]::GetFolderPath("LocalApplicationData")
-    $candidates = @(
-        # Current user's WindowsApps
-        (Join-Path $localAppData "Microsoft\WindowsApps\winget.exe"),
-        # System-wide Program Files location (some enterprise installs)
-        "$env:ProgramFiles\WindowsApps\Microsoft.DesktopAppInstaller*\winget.exe"
-    )
-    foreach ($pattern in $candidates) {
-        $found = Get-Item $pattern -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($found) { return $found.FullName }
+    $candidates += Join-Path $localAppData "Microsoft\WindowsApps\winget.exe"
+
+    # All other user profiles (covers "Run as Administrator" where SYSTEM is active)
+    $profiles = Get-ChildItem "C:\Users" -Directory -ErrorAction SilentlyContinue
+    foreach ($p in $profiles) {
+        $candidates += Join-Path $p.FullName "AppData\Local\Microsoft\WindowsApps\winget.exe"
     }
 
-    # 3. Search all user profiles (handles "Run as Administrator" from another account)
-    $profiles = Get-ChildItem "C:\Users" -Directory -ErrorAction SilentlyContinue
-    foreach ($profile in $profiles) {
-        $path = Join-Path $profile.FullName "AppData\Local\Microsoft\WindowsApps\winget.exe"
-        if (Test-Path $path) { return $path }
+    foreach ($path in $candidates) {
+        if (Test-Path $path -PathType Leaf) { return $path }
     }
 
     return $null
 }
 
-$script:WingetExe = $null
+function Test-WingetExecutable {
+    param([string]$Path)
+    # The WindowsApps real binary is ACL-locked; the per-user alias stub works fine.
+    # Quick test: run winget --version and see if it exits cleanly.
+    try {
+        $out = & $Path --version 2>&1
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
+}
 
 function Ensure-Winget {
-    $script:WingetExe = Get-WingetPath
-    if ($script:WingetExe) {
-        Write-Success "winget found: $($script:WingetExe)"
-        return
+    $candidate = Get-WingetPath
+    if ($candidate) {
+        if (Test-WingetExecutable $candidate) {
+            $script:WingetExe = $candidate
+            Write-Success "winget ready: $candidate"
+            return
+        } else {
+            Write-Warn "winget found at $candidate but could not be executed (ACL restriction)."
+            Write-Info "Falling back to cmd /c winget..."
+            # Try via cmd — cmd inherits the interactive user's PATH even in elevated sessions
+            $ver = cmd /c "winget --version" 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                $script:WingetExe = "cmd"
+                Write-Success "winget accessible via cmd /c: $($ver.Trim())"
+                return
+            }
+        }
     }
 
     # winget truly not present — try to install App Installer via MSIX
@@ -124,17 +148,18 @@ function Ensure-Winget {
         Add-AppxPackage -Path $msixPath -ErrorAction Stop
         Remove-Item $msixPath -Force -ErrorAction SilentlyContinue
 
-        # Re-check after install
-        $script:WingetExe = Get-WingetPath
-        if ($script:WingetExe) {
-            Write-Success "winget installed successfully."
+        # Re-check
+        $candidate = Get-WingetPath
+        if ($candidate -and (Test-WingetExecutable $candidate)) {
+            $script:WingetExe = $candidate
+            Write-Success "winget installed and ready."
             return
         }
     } catch {
         Write-Warn "Automatic App Installer install failed: $_"
     }
 
-    Write-Warn "Could not install winget automatically."
+    Write-Warn "Could not locate or install winget."
     Write-Host "  Please install 'App Installer' from the Microsoft Store:" -ForegroundColor Yellow
     Write-Host "  https://apps.microsoft.com/store/detail/app-installer/9NBLGGH4NNS1" -ForegroundColor Cyan
     Die "winget is required. Install App Installer and re-run."
@@ -143,7 +168,14 @@ function Ensure-Winget {
 function Invoke-Winget {
     param([string[]]$Arguments)
     if (-not $script:WingetExe) { Die "winget path not resolved. Run Ensure-Winget first." }
-    & $script:WingetExe @Arguments
+
+    if ($script:WingetExe -eq "cmd") {
+        # Route through cmd so it picks up the interactive user's PATH
+        $argStr = $Arguments -join " "
+        cmd /c "winget $argStr"
+    } else {
+        & $script:WingetExe @Arguments
+    }
 }
 
 # -- Install Git ---------------------------------------------------------------
