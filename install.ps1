@@ -29,10 +29,19 @@ function Write-Warn    { param($msg) Write-Host "[!] $msg" -ForegroundColor Yell
 function Write-Err     { param($msg) Write-Host "[-] $msg" -ForegroundColor Red }
 function Write-Step    { param($msg) Write-Host "`n>>> $msg <<<`n" -ForegroundColor White }
 
+function Pause-AndExit {
+    param([int]$Code = 0)
+    Write-Host ""
+    Write-Host "  Press any key to close this window..." -ForegroundColor DarkGray
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    exit $Code
+}
+
 function Die {
     param($msg)
     Write-Err $msg
-    exit 1
+    Write-Host ""
+    Pause-AndExit 1
 }
 
 # -- Banner --------------------------------------------------------------------
@@ -463,7 +472,7 @@ function Run-Uninstall {
     } else {
         Write-Info "Uninstall cancelled."
     }
-    exit 0
+    Pause-AndExit 0
 }
 
 # -- Update --------------------------------------------------------------------
@@ -492,7 +501,7 @@ function Run-Update {
     Wait-ForHealthy
     Write-Success "Breach Tower updated."
     Print-Summary
-    exit 0
+    Pause-AndExit 0
 }
 
 # -- Main ----------------------------------------------------------------------
@@ -521,6 +530,17 @@ function Main {
     Build-And-Start -FreshEnv $freshEnv
     Wait-ForHealthy
     Print-Summary
+    Pause-AndExit 0
 }
 
-Main
+# Wrap the entire script in a try/catch so unhandled exceptions also pause
+# before the window closes, instead of silently disappearing.
+try {
+    Main
+} catch {
+    Write-Host ""
+    Write-Err "Unexpected error: $_"
+    Write-Host $_.ScriptStackTrace -ForegroundColor DarkGray
+    Write-Host ""
+    Pause-AndExit 1
+}
