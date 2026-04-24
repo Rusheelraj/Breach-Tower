@@ -115,7 +115,9 @@ Scoring factors: data type (plaintext +40, hash +20, email +5), source priority,
 
 ---
 
-## Quick Start — One-liner Installer (Linux)
+## Quick Start — One-liner Installer
+
+### Linux
 
 The recommended way to install on any Linux server or VM:
 
@@ -123,16 +125,28 @@ The recommended way to install on any Linux server or VM:
 cd /tmp && sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Rusheelraj/Breach-Tower/main/install.sh)"
 ```
 
-The installer will:
-- Detect your distro (Ubuntu, Debian, Kali, Parrot, Fedora, Arch, etc.)
-- Install Docker and Docker Compose v2 if not present
-- Clone the repo to `/opt/breach-tower`
+Both installers will:
+- Install Docker and Docker Compose if not present
+- Clone the repo to the install directory
 - Prompt for email, SMTP, and Slack settings
 - Generate cryptographically strong secrets automatically
 - Build and start all containers
 - Wait for the health check to pass
 
 > **Supported distros:** Ubuntu, Debian, Kali Linux, Parrot, Linux Mint, Pop!\_OS, Fedora, CentOS, Rocky, AlmaLinux, Arch, Manjaro, Raspberry Pi OS
+
+### Windows
+
+Run from an **elevated (Administrator) PowerShell** prompt:
+
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force
+irm https://raw.githubusercontent.com/Rusheelraj/Breach-Tower/main/install.ps1 | iex
+```
+
+> **Requirements:** Windows 10 20H1 (build 19041) or later. The installer uses [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) to install Git and Docker Desktop automatically, and WSL2 for the Docker backend.
+
+Installs to `C:\breach-tower`.
 
 ### After install
 
@@ -149,14 +163,26 @@ API Docs  : http://localhost:8000/docs
 
 ### Update
 
+**Linux:**
 ```bash
 sudo bash /opt/breach-tower/install.sh --update
 ```
 
+**Windows (Administrator PowerShell):**
+```powershell
+PowerShell -ExecutionPolicy Bypass -File C:\breach-tower\install.ps1 -Update
+```
+
 ### Uninstall
 
+**Linux:**
 ```bash
 sudo bash /opt/breach-tower/install.sh --uninstall
+```
+
+**Windows (Administrator PowerShell):**
+```powershell
+PowerShell -ExecutionPolicy Bypass -File C:\breach-tower\install.ps1 -Uninstall
 ```
 
 ---
