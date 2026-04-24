@@ -10,7 +10,7 @@ services:
     environment:
       POSTGRES_DB: breachtower
       POSTGRES_USER: admin
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-REMOVED_DEFAULT}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in your .env file}
     ports:
       - "5432:5432"
     volumes:
