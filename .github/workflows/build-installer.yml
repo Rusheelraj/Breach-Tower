@@ -24,9 +24,11 @@ jobs:
           go-version: "1.22"
           cache-dependency-path: installer/go.sum
 
-      - name: Download Go dependencies
+      - name: Tidy and download Go dependencies
         working-directory: installer
-        run: go mod download
+        run: |
+          go mod tidy
+          go mod download
 
       - name: Install goversioninfo (embeds version + UAC manifest)
         run: go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest

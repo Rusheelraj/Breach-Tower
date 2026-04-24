@@ -3,21 +3,24 @@ package installer
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
 
 // isAdmin returns true if the current process has Administrator privileges.
 func isAdmin() bool {
-	token := windows.Token(0)
+	var token windows.Token
 	if err := windows.OpenProcessToken(windows.CurrentProcess(), windows.TOKEN_QUERY, &token); err != nil {
 		return false
 	}
 	defer token.Close()
 	var elevated uint32
 	var size uint32
-	err := windows.GetTokenInformation(token, windows.TokenElevation, (*byte)(syscall.Pointer(&elevated)), 4, &size)
+	err := windows.GetTokenInformation(token, windows.TokenElevation,
+		(*byte)(unsafe.Pointer(&elevated)), 4, &size)
 	return err == nil && elevated != 0
 }
 
@@ -36,26 +39,32 @@ func requireAdmin() {
 	exe, _ = filepath.Abs(exe)
 
 	// Build the argument string for the re-launch
-	args := ""
+	var argParts []string
 	if len(os.Args) > 1 {
-		for i, a := range os.Args[1:] {
-			if i > 0 {
-				args += " "
-			}
-			args += a
-		}
+		argParts = os.Args[1:]
 	}
+	args := strings.Join(argParts, " ")
 
-	verb, _ := syscall.UTF16PtrFromString("runas")
+	shell32 := syscall.NewLazyDLL("shell32.dll")
+	shellExec := shell32.NewProc("ShellExecuteW")
+
+	verbPtr, _ := syscall.UTF16PtrFromString("runas")
 	exePtr, _ := syscall.UTF16PtrFromString(exe)
 	var argsPtr *uint16
 	if args != "" {
 		argsPtr, _ = syscall.UTF16PtrFromString(args)
 	}
 
-	err = windows.ShellExecute(0, verb, exePtr, argsPtr, nil, windows.SW_NORMAL)
-	if err != nil {
-		die("Failed to request elevation: " + err.Error())
+	ret, _, _ := shellExec.Call(
+		0,
+		uintptr(unsafe.Pointer(verbPtr)),
+		uintptr(unsafe.Pointer(exePtr)),
+		uintptr(unsafe.Pointer(argsPtr)),
+		0,
+		uintptr(windows.SW_NORMAL),
+	)
+	if ret <= 32 {
+		die("Failed to request elevation (ShellExecuteW returned error).")
 	}
 	os.Exit(0)
 }

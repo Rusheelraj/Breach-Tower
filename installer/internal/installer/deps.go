@@ -171,7 +171,8 @@ func startDockerDesktop() {
 	if !dockerProcessRunning() {
 		logInfo("Starting Docker Desktop...")
 		cmd := exec.Command(dockerExe)
-		cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP}
+		// CREATE_NEW_PROCESS_GROUP so the child isn't killed when our console closes
+		cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: 0x00000200}
 		if err := cmd.Start(); err != nil {
 			die("Failed to start Docker Desktop: " + err.Error())
 		}
