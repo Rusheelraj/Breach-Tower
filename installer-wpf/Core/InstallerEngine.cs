@@ -194,11 +194,19 @@ public class InstallerEngine
             exitCode = RunStream(_wingetExe, string.Join(" ", allArgs));
         }
 
-        // Non-fatal codes: already installed / already up to date
-        if (exitCode == unchecked((int)0x8a150015) ||
-            exitCode == unchecked((int)0x8a150109))
+        // Non-fatal winget exit codes — these do not prevent installation
+        var nonFatal = new HashSet<int>
         {
-            _log("winget: package already installed (non-fatal, continuing)", "info");
+            unchecked((int)0x8a150015), // APPINSTALLER_CLI_ERROR_UPDATE_NOT_APPLICABLE (already up to date)
+            unchecked((int)0x8a150109), // APPINSTALLER_CLI_ERROR_PACKAGE_ALREADY_INSTALLED
+            unchecked((int)0x8a15000f), // APPINSTALLER_CLI_ERROR_SOURCE_DATA_MISSING
+                                        //   msstore source fails in elevated/SYSTEM sessions even when
+                                        //   --source winget is set; the winget source succeeds regardless
+        };
+
+        if (nonFatal.Contains(exitCode))
+        {
+            _log($"winget: non-fatal exit 0x{exitCode:X8} — continuing", "info");
             return;
         }
 
@@ -224,7 +232,26 @@ public class InstallerEngine
         RefreshPath();
 
         if (FindOnPath("git.exe") == null)
-            throw new InstallerException("Git installed but not found on PATH. Please reboot and re-run.");
+        {
+            // Git may be installed but PATH not yet refreshed in this process
+            // Try the default install location directly
+            var gitDefault = @"C:\Program Files\Git\bin\git.exe";
+            if (File.Exists(gitDefault))
+            {
+                var pathMachine = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Machine) ?? "";
+                var pathUser    = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.User) ?? "";
+                Environment.SetEnvironmentVariable("PATH",
+                    pathMachine + ";" + pathUser + @";C:\Program Files\Git\bin;C:\Program Files\Git\cmd",
+                    EnvironmentVariableTarget.Process);
+                _log("Git found at default location, PATH updated.", "info");
+            }
+            else
+            {
+                throw new InstallerException(
+                    "Git was installed but could not be found on PATH.\n" +
+                    "Please reboot and re-run the installer.");
+            }
+        }
 
         var ver = RunCapture("git", "--version") ?? "";
         _log("Git installed: " + ver.Trim(), "success");
@@ -294,6 +321,19 @@ public class InstallerEngine
                              "--accept-package-agreements", "--accept-source-agreements"), ct);
 
         RefreshPath();
+
+        // Also add Docker's default install path in case PATH refresh didn't catch it
+        var dockerDefault = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            @"Docker\Docker\resources\bin");
+        if (Directory.Exists(dockerDefault))
+        {
+            var cur = Environment.GetEnvironmentVariable("PATH", EnvironmentVariableTarget.Process) ?? "";
+            if (!cur.Contains(dockerDefault))
+                Environment.SetEnvironmentVariable("PATH", cur + ";" + dockerDefault,
+                    EnvironmentVariableTarget.Process);
+        }
+
         _log("Docker Desktop installed. Starting daemon...", "success");
         await StartDockerDesktopAsync(ct);
     }
