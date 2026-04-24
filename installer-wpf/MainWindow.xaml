@@ -41,23 +41,19 @@
 
         <!-- Logo / title -->
         <TextBlock Text="BREACH" FontSize="22" FontWeight="Bold"
-                   Foreground="{StaticResource AccentBrush}" LetterSpacing="4"/>
+                   Foreground="{StaticResource AccentBrush}" Typography.Kerning="False"/>
         <TextBlock Text="TOWER" FontSize="22" FontWeight="Bold"
-                   Foreground="{StaticResource AccentBrush}" LetterSpacing="4" Margin="0,-4,0,0"/>
+                   Foreground="{StaticResource AccentBrush}" Typography.Kerning="False" Margin="0,-4,0,0"/>
         <TextBlock Text="Installer" FontSize="11"
                    Foreground="{StaticResource DimBrush}" Margin="0,2,0,24"/>
 
         <!-- Step list -->
         <TextBlock Text="STEPS" FontSize="10" FontWeight="Bold"
-                   Foreground="{StaticResource DimBrush}" LetterSpacing="2" Margin="0,0,0,12"/>
+                   Foreground="{StaticResource DimBrush}" Typography.Kerning="False" Margin="0,0,0,12"/>
 
         <StackPanel x:Name="StepPanel">
           <!-- Populated in code-behind -->
         </StackPanel>
-
-        <!-- Spacer -->
-        <StackPanel.Children>
-        </StackPanel.Children>
 
       </StackPanel>
     </Border>
@@ -145,13 +141,13 @@
             <!-- Alert email -->
             <TextBlock Text="Alert email *" FontSize="12" Margin="0,0,0,4"/>
             <TextBox x:Name="TxtAlertEmail" Style="{StaticResource DarkInput}"
-                     PlaceholderText="alerts@yourcompany.com" Margin="0,0,0,14"/>
+Margin="0,0,0,14"/>
 
             <!-- SMTP -->
             <TextBlock Text="SMTP host" FontSize="12" Margin="0,0,0,4"
                        Foreground="{StaticResource DimBrush}"/>
             <TextBox x:Name="TxtSmtpHost" Style="{StaticResource DarkInput}"
-                     PlaceholderText="smtp.gmail.com  (optional)" Margin="0,0,0,14"/>
+Margin="0,0,0,14"/>
 
             <Grid Margin="0,0,0,14">
               <Grid.ColumnDefinitions>
@@ -163,7 +159,7 @@
                 <TextBlock Text="SMTP username" FontSize="12" Margin="0,0,0,4"
                            Foreground="{StaticResource DimBrush}"/>
                 <TextBox x:Name="TxtSmtpUser" Style="{StaticResource DarkInput}"
-                         PlaceholderText="you@gmail.com  (optional)"/>
+                         />
               </StackPanel>
               <StackPanel Grid.Column="2">
                 <TextBlock Text="SMTP port" FontSize="12" Margin="0,0,0,4"
@@ -182,7 +178,6 @@
             <TextBlock Text="Slack webhook URL" FontSize="12" Margin="0,0,0,4"
                        Foreground="{StaticResource DimBrush}"/>
             <TextBox x:Name="TxtSlack" Style="{StaticResource DarkInput}"
-                     PlaceholderText="https://hooks.slack.com/...  (optional)"
                      Margin="0,0,0,14"/>
 
             <!-- Dashboard URL -->
