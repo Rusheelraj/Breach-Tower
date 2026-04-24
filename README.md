@@ -32,14 +32,16 @@ Most breach notification services are reactive: you find out months later via a 
 | Monitor | Source | Requires Key |
 |---|---|---|
 | **Leak-Lookup** | Aggregated breach database | Yes |
-| **LeakCheck** | Credential breach search | Yes |
-| **BreachDirectory** | Plaintext + hashed password dumps | Yes |
+| **LeakCheck** | Credential breach search (falls back to free public API) | Optional |
+| **BreachDirectory** | Plaintext + hashed password dumps | Yes (RapidAPI) |
 | **IntelligenceX** | Dark web / deep web search | Yes |
 | **Telegram** | Stealer log channels (Telethon) | Yes (API ID/Hash) |
 | **Paste Sites** | Pastebin scraping + DDG fallback | No |
 | **CTI Feeds** | ctifeeds.andreafortuna.org (5 feeds) | No |
 
 CTI Feeds covers: data leaks, phishing sites, underground data markets, ransomware victims, and website defacements.
+
+> **LeakCheck** uses the authenticated API when a key is set, and automatically falls back to the free public endpoint (50 req/day) if the key is missing or invalid.
 
 ---
 
@@ -89,10 +91,11 @@ Scoring factors: data type (plaintext +40, hash +20, email +5), source priority,
 **Security**
 - Credential vault with server-side password verification
 - All API keys masked in the UI by default
-- Security headers (X-Frame-Options, X-Content-Type-Options, etc.)
-- CORS enforcement via environment variable
 - JWT authentication + session revocation
+- CORS enforcement via environment variable
 - Alert retention policies (configurable)
+- Atomic `.env` writes (no corruption on kill)
+- Telegram session file protected with `chmod 600`
 
 ---
 
@@ -112,60 +115,63 @@ Scoring factors: data type (plaintext +40, hash +20, email +5), source priority,
 
 ---
 
-## Quick Start
+## Quick Start — One-liner Installer (Linux)
 
-### Prerequisites
-- Docker and Docker Compose
-- API keys for the monitors you want to enable (all optional — the system runs with whatever you configure)
-
-### 1. Clone and configure
+The recommended way to install on any Linux server or VM:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/breach-tower.git
-cd breach-tower
+cd /tmp && sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Rusheelraj/Breach-Tower/main/install.sh)"
+```
+
+The installer will:
+- Detect your distro (Ubuntu, Debian, Kali, Parrot, Fedora, Arch, etc.)
+- Install Docker and Docker Compose v2 if not present
+- Clone the repo to `/opt/breach-tower`
+- Prompt for email, SMTP, and Slack settings
+- Generate cryptographically strong secrets automatically
+- Build and start all containers
+- Wait for the health check to pass
+
+> **Supported distros:** Ubuntu, Debian, Kali Linux, Parrot, Linux Mint, Pop!\_OS, Fedora, CentOS, Rocky, AlmaLinux, Arch, Manjaro, Raspberry Pi OS
+
+### After install
+
+```
+Dashboard : http://localhost:3000
+API Docs  : http://localhost:8000/docs
+```
+
+1. Open the dashboard and **register your admin account** (first user gets admin role)
+2. Go to **Settings → Intelligence Sources** and enter your API keys
+3. Go to **Settings → Telegram** to authenticate your Telegram session via the UI
+4. Go to **Targets** and add your domains or email patterns
+5. Run your first scan
+
+### Update
+
+```bash
+sudo bash /opt/breach-tower/install.sh --update
+```
+
+### Uninstall
+
+```bash
+sudo bash /opt/breach-tower/install.sh --uninstall
+```
+
+---
+
+## Manual Docker Setup
+
+If you prefer to set up manually:
+
+```bash
+git clone https://github.com/Rusheelraj/Breach-Tower.git
+cd Breach-Tower
 cp .env.example .env
 ```
 
-Edit `.env` with your configuration:
-
-```env
-# Database
-DATABASE_URL=postgresql://admin:yourpassword@db:5432/breachtower
-DB_PASSWORD=yourpassword
-
-# Auth
-JWT_SECRET=generate-a-strong-random-secret-here
-VAULT_PASSWORD=your-vault-password
-
-# SMTP alerts
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=you@yourcompany.com
-SMTP_PASS=your-app-password
-ALERT_EMAIL=security@yourcompany.com
-
-# Slack (optional)
-SLACK_WEBHOOK=https://hooks.slack.com/services/...
-
-# Intelligence API keys (all optional — enable what you have)
-LEAKLOOKUP_API_KEY=
-LEAKCHECK_API_KEY=
-INTELX_API_KEY=
-BREACH_DIRECTORY_KEY=
-TELEGRAM_API_ID=
-TELEGRAM_API_HASH=
-
-# Scan interval in hours (3, 6, 12, or 24)
-SCAN_INTERVAL_HOURS=6
-
-# Comma-separated list of monitors to disable
-# DISABLED_MONITORS=breach,telegram
-
-# CORS
-ALLOWED_ORIGINS=http://localhost:3000
-```
-
-### 2. Start
+Edit `.env` with your configuration (see [Environment Variables](#environment-variables-reference) below), then:
 
 ```bash
 docker compose up --build
@@ -174,32 +180,30 @@ docker compose up --build
 - Frontend: http://localhost:3000
 - API: http://localhost:8000
 
-### 3. Create your first admin user
-
-On first launch, register through the UI. The first registered user is granted the admin role automatically.
-
 ---
 
-## Manual Setup (without Docker)
+## Local Development Setup
 
-### Backend
+Use `docker-compose.dev.yml` to run only PostgreSQL in Docker, and run the backend and frontend locally:
 
 ```bash
+# Start only postgres
+docker compose -f docker-compose.dev.yml up -d
+
+# Backend
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env            # fill in your values
+cp .env.example .env            # fill in values — use localhost:5432 for DATABASE_URL
 uvicorn backend.main:app --reload --port 8000
-```
 
-### Frontend
-
-```bash
+# Frontend (separate terminal)
 cd frontend
-cp .env.example .env            # set VITE_API_URL if needed
 npm install
-npm run dev                     # dev server on :3000
+npm run dev                     # dev server on :3000 with /api proxy to :8000
 ```
+
+> The Vite dev server proxies `/api/*` to `http://localhost:8000` automatically.
 
 ---
 
@@ -218,7 +222,9 @@ The system will scan all configured monitors against every active target on each
 
 Go to **Settings** and enter your API keys under each intelligence source. Monitors with no key configured are automatically skipped. Paste Sites and CTI Feeds require no key and are always active.
 
-To disable a specific monitor without removing its key:
+API keys saved via the Settings UI take effect on the **next scan** — no container restart required.
+
+To disable a specific monitor without removing its key, toggle it off in **Settings → Enable / Disable** or set:
 
 ```env
 DISABLED_MONITORS=breach,telegram
@@ -230,12 +236,18 @@ DISABLED_MONITORS=breach,telegram
 
 The Telegram monitor uses [Telethon](https://github.com/LonamiWebs/Telethon) to watch public stealer log channels.
 
-1. Get your `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` from [my.telegram.org](https://my.telegram.org)
-2. Set them in `.env`
-3. On first run, Telethon will prompt for your phone number to create a session file
-4. The session file is stored locally and excluded from git
+**Setup via the UI (recommended):**
 
-> The monitor only reads public channels. No private channels are accessed.
+1. Get your `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` from [my.telegram.org](https://my.telegram.org)
+2. Go to **Settings → Telegram — Stealer Log Channels**
+3. Enter your API ID and API Hash, then click **Save Configuration**
+4. The **Session Authentication** panel will appear — enter your phone number and click **Send Code**
+5. Enter the code received in your Telegram app and click **Verify**
+6. Done — the monitor will scan on the next run
+
+The session file is stored at `/opt/breach-tower/breachtower_session.session` (permissions `600`) and persists across container restarts via a Docker volume mount.
+
+> The monitor only reads **public channels**. No private or invite-only channels are accessed.
 
 ---
 
@@ -255,10 +267,13 @@ breach-tower/
 ├── frontend/
 │   └── src/
 │       ├── pages/        # React pages (Dashboard, Targets, Settings, etc.)
+│       ├── auth/         # AuthContext, token validation
 │       ├── api.js        # API client
 │       └── App.jsx
 ├── .env.example
 ├── docker-compose.yml
+├── docker-compose.dev.yml  # Dev: postgres only
+├── install.sh              # One-liner Linux installer
 └── requirements.txt
 ```
 
@@ -269,35 +284,69 @@ breach-tower/
 | Variable | Required | Description |
 |---|---|---|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `JWT_SECRET` | Yes | Secret key for JWT signing |
+| `DB_PASSWORD` | Yes | Postgres password (used by docker-compose) |
+| `JWT_SECRET` | Yes | Secret key for JWT signing (minimum 32 chars) |
 | `VAULT_PASSWORD` | Yes | Password to unlock the credential vault in UI |
+| `ENVIRONMENT` | No | Set to `production` to enforce JWT length and disable Swagger |
 | `SMTP_HOST` | No | SMTP server hostname |
 | `SMTP_PORT` | No | SMTP port (default 587) |
 | `SMTP_USER` | No | SMTP login |
-| `SMTP_PASS` | No | SMTP password |
+| `SMTP_PASS` | No | SMTP password or app password |
 | `ALERT_EMAIL` | No | Recipient address for alert emails |
 | `SLACK_WEBHOOK` | No | Slack incoming webhook URL |
 | `LEAKLOOKUP_API_KEY` | No | Leak-Lookup API key |
-| `LEAKCHECK_API_KEY` | No | LeakCheck API key |
+| `LEAKCHECK_API_KEY` | No | LeakCheck API key (falls back to free tier if absent) |
 | `INTELX_API_KEY` | No | IntelligenceX API key |
 | `BREACH_DIRECTORY_KEY` | No | BreachDirectory / RapidAPI key |
 | `TELEGRAM_API_ID` | No | Telegram API ID (from my.telegram.org) |
 | `TELEGRAM_API_HASH` | No | Telegram API Hash |
-| `SCAN_INTERVAL_HOURS` | No | Hours between scans (default 6) |
-| `DISABLED_MONITORS` | No | Comma-separated monitors to skip |
+| `PASTEBIN_API_KEY` | No | Pastebin API key (for scraping API access) |
+| `PASTEBIN_API_USER_KEY` | No | Pastebin user key |
+| `SCAN_INTERVAL_HOURS` | No | Hours between scheduled scans (default 6) |
+| `DISABLED_MONITORS` | No | Comma-separated monitor keys to skip |
 | `ALLOWED_ORIGINS` | No | CORS allowed origins (default http://localhost:3000) |
-| `ENVIRONMENT` | No | Set to `production` to disable Swagger docs |
+| `AZURE_CLIENT_ID` | No | Microsoft Entra App client ID (for SSO) |
+| `AZURE_TENANT_ID` | No | Microsoft Entra tenant ID (for SSO) |
+
+---
+
+## Useful Commands
+
+```bash
+# View live backend logs
+cd /opt/breach-tower && sudo docker-compose logs -f backend
+
+# View all service logs
+sudo docker-compose logs -f
+
+# Stop all services
+sudo docker-compose down
+
+# Start services (after stop)
+sudo docker-compose up -d
+
+# Rebuild after code changes
+sudo docker-compose up -d --build
+
+# Update to latest version
+sudo bash /opt/breach-tower/install.sh --update
+
+# Full uninstall (removes all data)
+sudo bash /opt/breach-tower/install.sh --uninstall
+```
 
 ---
 
 ## Security Notes
 
-- **Never commit `.env`** — it contains secrets. It is in `.gitignore` by default.
-- Set a strong `JWT_SECRET` in production — the system will warn if it falls back to a random value.
-- The credential vault UI requires server-side password verification via `hmac.compare_digest` (timing-safe comparison).
+- **Never commit `.env`** — it contains secrets. It is excluded by `.gitignore` by default.
+- `JWT_SECRET` must be at least 32 characters in production — the app will refuse to start if it is too short or missing.
+- Generate a strong JWT secret: `python3 -c "import secrets; print(secrets.token_hex(64))"`
+- The credential vault uses `hmac.compare_digest` (timing-safe comparison) for password verification.
 - Set `ENVIRONMENT=production` to disable the `/docs` and `/redoc` Swagger endpoints.
 - Restrict `ALLOWED_ORIGINS` to your actual frontend domain in production.
 - Do not expose port 8000 directly to the internet — put it behind a reverse proxy (nginx, Caddy).
+- The Telegram session file is stored with `chmod 600` — owner read/write only.
 
 ---
 
