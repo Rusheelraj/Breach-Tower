@@ -74,15 +74,74 @@ function Require-Admin {
     }
 }
 
-# -- Check / Install Winget ----------------------------------------------------
+# -- Resolve winget path (it lives in a per-user location, invisible to SYSTEM) -
+function Get-WingetPath {
+    # 1. Already on PATH (normal user session)
+    $cmd = Get-Command winget -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+
+    # 2. Common per-user install location (WindowsApps — visible even as SYSTEM)
+    $localAppData = [System.Environment]::GetFolderPath("LocalApplicationData")
+    $candidates = @(
+        # Current user's WindowsApps
+        (Join-Path $localAppData "Microsoft\WindowsApps\winget.exe"),
+        # System-wide Program Files location (some enterprise installs)
+        "$env:ProgramFiles\WindowsApps\Microsoft.DesktopAppInstaller*\winget.exe"
+    )
+    foreach ($pattern in $candidates) {
+        $found = Get-Item $pattern -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($found) { return $found.FullName }
+    }
+
+    # 3. Search all user profiles (handles "Run as Administrator" from another account)
+    $profiles = Get-ChildItem "C:\Users" -Directory -ErrorAction SilentlyContinue
+    foreach ($profile in $profiles) {
+        $path = Join-Path $profile.FullName "AppData\Local\Microsoft\WindowsApps\winget.exe"
+        if (Test-Path $path) { return $path }
+    }
+
+    return $null
+}
+
+$script:WingetExe = $null
+
 function Ensure-Winget {
-    if (Get-Command winget -ErrorAction SilentlyContinue) {
-        Write-Success "winget is available."
+    $script:WingetExe = Get-WingetPath
+    if ($script:WingetExe) {
+        Write-Success "winget found: $($script:WingetExe)"
         return
     }
-    Write-Warn "winget not found. Please install 'App Installer' from the Microsoft Store, then re-run."
+
+    # winget truly not present — try to install App Installer via MSIX
+    Write-Warn "winget (App Installer) not found. Attempting to install it automatically..."
+    try {
+        $msixUrl  = "https://aka.ms/getwinget"
+        $msixPath = "$env:TEMP\AppInstaller.msixbundle"
+        Write-Info "Downloading App Installer..."
+        Invoke-WebRequest -Uri $msixUrl -OutFile $msixPath -UseBasicParsing
+        Add-AppxPackage -Path $msixPath -ErrorAction Stop
+        Remove-Item $msixPath -Force -ErrorAction SilentlyContinue
+
+        # Re-check after install
+        $script:WingetExe = Get-WingetPath
+        if ($script:WingetExe) {
+            Write-Success "winget installed successfully."
+            return
+        }
+    } catch {
+        Write-Warn "Automatic App Installer install failed: $_"
+    }
+
+    Write-Warn "Could not install winget automatically."
+    Write-Host "  Please install 'App Installer' from the Microsoft Store:" -ForegroundColor Yellow
     Write-Host "  https://apps.microsoft.com/store/detail/app-installer/9NBLGGH4NNS1" -ForegroundColor Cyan
-    Die "winget is required to install dependencies automatically."
+    Die "winget is required. Install App Installer and re-run."
+}
+
+function Invoke-Winget {
+    param([string[]]$Arguments)
+    if (-not $script:WingetExe) { Die "winget path not resolved. Run Ensure-Winget first." }
+    & $script:WingetExe @Arguments
 }
 
 # -- Install Git ---------------------------------------------------------------
@@ -92,7 +151,7 @@ function Install-GitIfMissing {
         return
     }
     Write-Info "Installing Git for Windows..."
-    winget install --id Git.Git -e --silent --accept-package-agreements --accept-source-agreements
+    Invoke-Winget @("install", "--id", "Git.Git", "-e", "--silent", "--accept-package-agreements", "--accept-source-agreements")
     # Refresh PATH so git is available in this session
     $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" +
                 [System.Environment]::GetEnvironmentVariable("PATH", "User")
@@ -133,7 +192,7 @@ function Install-DockerIfMissing {
     }
 
     Write-Info "Installing Docker Desktop via winget (this may take several minutes)..."
-    winget install --id Docker.DockerDesktop -e --silent --accept-package-agreements --accept-source-agreements
+    Invoke-Winget @("install", "--id", "Docker.DockerDesktop", "-e", "--silent", "--accept-package-agreements", "--accept-source-agreements")
 
     Write-Success "Docker Desktop installed. Launching it now..."
     Start-DockerDesktop
