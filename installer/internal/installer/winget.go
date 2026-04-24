@@ -134,7 +134,17 @@ func installWinget() bool {
 	return true
 }
 
+// wingetNonFatalCodes are winget exit codes that are not real failures.
+// 0x8a150015 = APPINSTALLER_CLI_ERROR_UPDATE_NOT_APPLICABLE (already up to date)
+// 0x8a150109 = APPINSTALLER_CLI_ERROR_PACKAGE_ALREADY_INSTALLED
+var wingetNonFatalCodes = map[uint32]string{
+	0x8a150015: "already up to date",
+	0x8a150109: "already installed",
+}
+
 // runWinget calls winget with the given arguments, streaming output live.
+// It passes --source winget to avoid the msstore source which requires
+// region data and fails in elevated/SYSTEM sessions.
 func runWinget(args ...string) error {
 	if wingetExe == "" {
 		return fmt.Errorf("winget not resolved — call ensureWinget first")
@@ -148,5 +158,17 @@ func runWinget(args ...string) error {
 	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	err := cmd.Run()
+	if err == nil {
+		return nil
+	}
+	// Check if exit code is a known non-fatal winget code
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		code := uint32(exitErr.ExitCode())
+		if reason, known := wingetNonFatalCodes[code]; known {
+			logInfo("winget: " + reason + " (non-fatal, continuing)")
+			return nil
+		}
+	}
+	return err
 }

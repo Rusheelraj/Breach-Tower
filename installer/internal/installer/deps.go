@@ -54,7 +54,7 @@ func installGit() {
 
 	logInfo("Installing Git for Windows...")
 	err := runWinget("install", "--id", "Git.Git",
-		"-e", "--silent",
+		"-e", "--silent", "--source", "winget",
 		"--accept-package-agreements", "--accept-source-agreements")
 	if err != nil {
 		die("Git installation failed: " + err.Error())
@@ -93,7 +93,7 @@ func installDocker() {
 
 	logInfo("Installing Docker Desktop via winget (this may take several minutes)...")
 	err := runWinget("install", "--id", "Docker.DockerDesktop",
-		"-e", "--silent",
+		"-e", "--silent", "--source", "winget",
 		"--accept-package-agreements", "--accept-source-agreements")
 	if err != nil {
 		die("Docker Desktop installation failed: " + err.Error())
