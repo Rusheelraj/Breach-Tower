@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>breach-tower-installer</AssemblyName>
+    <RootNamespace>BreachTowerInstaller</RootNamespace>
+    <ApplicationManifest>Resources\breach-tower-installer.manifest</ApplicationManifest>
+
+    <!-- Self-contained single-file publish -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+
+    <!-- Version info (overridden by CI) -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <Company>Rusheelraj</Company>
+    <Product>Breach Tower</Product>
+    <Copyright>Private — All Rights Reserved</Copyright>
+    <Description>Breach Tower Windows Installer</Description>
+  </PropertyGroup>
+
+</Project>

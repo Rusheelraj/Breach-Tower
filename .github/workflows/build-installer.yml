@@ -10,8 +10,9 @@ permissions:
   contents: write   # needed to upload release assets
 
 jobs:
-  build:
-    name: Build breach-tower-installer.exe
+  # ── Job 1: Go CLI installer ─────────────────────────────────────────────────
+  build-cli:
+    name: Build breach-tower-installer.exe (CLI)
     runs-on: windows-latest
 
     steps:
@@ -105,3 +106,59 @@ jobs:
             ```bash
             cd /tmp && sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Rusheelraj/Breach-Tower/main/install.sh)"
             ```
+
+  # ── Job 2: WPF GUI installer ────────────────────────────────────────────────
+  build-wpf:
+    name: Build breach-tower-setup.exe (WPF GUI)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Resolve version string
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag -replace '^v', ''
+          if (-not $ver -or $ver -notmatch '^\d') { $ver = "1.0.0" }
+          echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
+
+      - name: Restore dependencies
+        working-directory: installer-wpf
+        run: dotnet restore
+
+      - name: Publish self-contained single-file exe
+        working-directory: installer-wpf
+        run: |
+          dotnet publish -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:AssemblyVersion=${{ steps.version.outputs.VERSION }}.0 `
+            -p:FileVersion=${{ steps.version.outputs.VERSION }}.0 `
+            -p:InformationalVersion=${{ steps.version.outputs.VERSION }} `
+            -o publish
+
+      - name: Rename output
+        working-directory: installer-wpf
+        run: |
+          Rename-Item publish\breach-tower-installer.exe breach-tower-setup.exe
+
+      - name: Upload WPF exe as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: breach-tower-setup-windows-amd64
+          path: installer-wpf/publish/breach-tower-setup.exe
+          retention-days: 30
+
+      - name: Attach WPF exe to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installer-wpf/publish/breach-tower-setup.exe

@@ -1,0 +1,363 @@
+<Window x:Class="BreachTowerInstaller.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Breach Tower Installer"
+        Width="900" Height="620"
+        MinWidth="820" MinHeight="560"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BgBrush}"
+        Foreground="{StaticResource TextBrush}"
+        FontFamily="Segoe UI"
+        ResizeMode="CanMinimize">
+
+  <Window.Resources>
+    <!-- Step indicator style -->
+    <Style x:Key="StepLabel" TargetType="TextBlock">
+      <Setter Property="FontSize"   Value="12"/>
+      <Setter Property="Foreground" Value="{StaticResource DimBrush}"/>
+      <Setter Property="Margin"     Value="0,4,0,4"/>
+    </Style>
+    <Style x:Key="StepLabelActive" TargetType="TextBlock" BasedOn="{StaticResource StepLabel}">
+      <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style x:Key="StepLabelDone" TargetType="TextBlock" BasedOn="{StaticResource StepLabel}">
+      <Setter Property="Foreground" Value="{StaticResource SuccessBrush}"/>
+    </Style>
+  </Window.Resources>
+
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="210"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- ══ LEFT SIDEBAR ══════════════════════════════════════════════════════ -->
+    <Border Grid.Column="0"
+            Background="{StaticResource PanelBrush}"
+            BorderBrush="{StaticResource BorderBrush}"
+            BorderThickness="0,0,1,0">
+      <StackPanel Margin="20,28,20,20">
+
+        <!-- Logo / title -->
+        <TextBlock Text="BREACH" FontSize="22" FontWeight="Bold"
+                   Foreground="{StaticResource AccentBrush}" LetterSpacing="4"/>
+        <TextBlock Text="TOWER" FontSize="22" FontWeight="Bold"
+                   Foreground="{StaticResource AccentBrush}" LetterSpacing="4" Margin="0,-4,0,0"/>
+        <TextBlock Text="Installer" FontSize="11"
+                   Foreground="{StaticResource DimBrush}" Margin="0,2,0,24"/>
+
+        <!-- Step list -->
+        <TextBlock Text="STEPS" FontSize="10" FontWeight="Bold"
+                   Foreground="{StaticResource DimBrush}" LetterSpacing="2" Margin="0,0,0,12"/>
+
+        <StackPanel x:Name="StepPanel">
+          <!-- Populated in code-behind -->
+        </StackPanel>
+
+        <!-- Spacer -->
+        <StackPanel.Children>
+        </StackPanel.Children>
+
+      </StackPanel>
+    </Border>
+
+    <!-- ══ RIGHT CONTENT AREA ════════════════════════════════════════════════ -->
+    <Grid Grid.Column="1">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>   <!-- header bar -->
+        <RowDefinition Height="*"/>      <!-- page content -->
+        <RowDefinition Height="Auto"/>   <!-- progress bar + footer -->
+      </Grid.RowDefinitions>
+
+      <!-- Header bar -->
+      <Border Grid.Row="0"
+              Background="{StaticResource PanelBrush}"
+              BorderBrush="{StaticResource BorderBrush}"
+              BorderThickness="0,0,0,1"
+              Padding="24,14">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <TextBlock x:Name="HeaderTitle"
+                     Text="Welcome to Breach Tower"
+                     FontSize="15" FontWeight="SemiBold"
+                     Foreground="{StaticResource TextBrush}"
+                     VerticalAlignment="Center"/>
+          <TextBlock Grid.Column="1"
+                     Text="v1.0"
+                     FontSize="11"
+                     Foreground="{StaticResource DimBrush}"
+                     VerticalAlignment="Center"/>
+        </Grid>
+      </Border>
+
+      <!-- Page switcher -->
+      <Grid x:Name="PageHost" Grid.Row="1">
+
+        <!-- ── PAGE 0: Welcome ─────────────────────────────────────────────── -->
+        <Grid x:Name="PageWelcome" Visibility="Visible">
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                      MaxWidth="440">
+            <TextBlock Text="Self-hosted dark web" FontSize="13"
+                       Foreground="{StaticResource DimBrush}" TextAlignment="Center"/>
+            <TextBlock Text="threat intelligence" FontSize="13"
+                       Foreground="{StaticResource DimBrush}" TextAlignment="Center"/>
+            <TextBlock Text="for small businesses." FontSize="13"
+                       Foreground="{StaticResource DimBrush}" TextAlignment="Center"
+                       Margin="0,0,0,32"/>
+
+            <TextBlock TextWrapping="Wrap" TextAlignment="Center"
+                       Foreground="{StaticResource DimBrush}" FontSize="12"
+                       Margin="0,0,0,32"
+                       Text="This installer will set up Git, Docker Desktop, clone the repository, generate your configuration, and start all services automatically."/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,16">
+              <Button x:Name="BtnInstall" Content="Install Breach Tower"
+                      Style="{StaticResource PrimaryButton}"
+                      Click="BtnInstall_Click" Margin="0,0,8,0"/>
+              <Button x:Name="BtnUpdate" Content="Update"
+                      Style="{StaticResource SecondaryButton}"
+                      Click="BtnUpdate_Click" Margin="0,0,8,0"/>
+              <Button x:Name="BtnUninstall" Content="Uninstall"
+                      Style="{StaticResource SecondaryButton}"
+                      Click="BtnUninstall_Click"/>
+            </StackPanel>
+
+            <TextBlock Text="Installs to  C:\breach-tower"
+                       FontSize="11" Foreground="{StaticResource DimBrush}"
+                       TextAlignment="Center" FontFamily="Consolas"/>
+          </StackPanel>
+        </Grid>
+
+        <!-- ── PAGE 1: Configuration form ──────────────────────────────────── -->
+        <ScrollViewer x:Name="PageConfig" Visibility="Collapsed"
+                      VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="32,24,32,24" MaxWidth="520">
+            <TextBlock Text="Configuration" FontSize="16" FontWeight="SemiBold"
+                       Margin="0,0,0,4"/>
+            <TextBlock Text="All fields except the alert email are optional — configure API keys in Settings after install."
+                       FontSize="12" Foreground="{StaticResource DimBrush}"
+                       TextWrapping="Wrap" Margin="0,0,0,24"/>
+
+            <!-- Alert email -->
+            <TextBlock Text="Alert email *" FontSize="12" Margin="0,0,0,4"/>
+            <TextBox x:Name="TxtAlertEmail" Style="{StaticResource DarkInput}"
+                     PlaceholderText="alerts@yourcompany.com" Margin="0,0,0,14"/>
+
+            <!-- SMTP -->
+            <TextBlock Text="SMTP host" FontSize="12" Margin="0,0,0,4"
+                       Foreground="{StaticResource DimBrush}"/>
+            <TextBox x:Name="TxtSmtpHost" Style="{StaticResource DarkInput}"
+                     PlaceholderText="smtp.gmail.com  (optional)" Margin="0,0,0,14"/>
+
+            <Grid Margin="0,0,0,14">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="120"/>
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="SMTP username" FontSize="12" Margin="0,0,0,4"
+                           Foreground="{StaticResource DimBrush}"/>
+                <TextBox x:Name="TxtSmtpUser" Style="{StaticResource DarkInput}"
+                         PlaceholderText="you@gmail.com  (optional)"/>
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="SMTP port" FontSize="12" Margin="0,0,0,4"
+                           Foreground="{StaticResource DimBrush}"/>
+                <TextBox x:Name="TxtSmtpPort" Style="{StaticResource DarkInput}"
+                         Text="587"/>
+              </StackPanel>
+            </Grid>
+
+            <TextBlock Text="SMTP password / app password" FontSize="12" Margin="0,0,0,4"
+                       Foreground="{StaticResource DimBrush}"/>
+            <PasswordBox x:Name="PwdSmtp" Style="{StaticResource DarkPassword}"
+                         Margin="0,0,0,14"/>
+
+            <!-- Slack -->
+            <TextBlock Text="Slack webhook URL" FontSize="12" Margin="0,0,0,4"
+                       Foreground="{StaticResource DimBrush}"/>
+            <TextBox x:Name="TxtSlack" Style="{StaticResource DarkInput}"
+                     PlaceholderText="https://hooks.slack.com/...  (optional)"
+                     Margin="0,0,0,14"/>
+
+            <!-- Dashboard URL -->
+            <TextBlock Text="Dashboard public URL" FontSize="12" Margin="0,0,0,4"
+                       Foreground="{StaticResource DimBrush}"/>
+            <TextBox x:Name="TxtDashUrl" Style="{StaticResource DarkInput}"
+                     Text="http://localhost:3000" Margin="0,0,0,32"/>
+
+            <Button x:Name="BtnStartInstall" Content="Start Installation →"
+                    Style="{StaticResource PrimaryButton}"
+                    HorizontalAlignment="Left"
+                    Click="BtnStartInstall_Click"/>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ── PAGE 2: Installing (log output) ──────────────────────────────── -->
+        <Grid x:Name="PageInstalling" Visibility="Collapsed">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+
+          <TextBlock Grid.Row="0"
+                     x:Name="LblCurrentStep"
+                     Text="Starting..."
+                     FontSize="13" FontWeight="SemiBold"
+                     Foreground="{StaticResource InfoBrush}"
+                     Margin="24,16,24,8"/>
+
+          <!-- Log area -->
+          <Border Grid.Row="1"
+                  Margin="16,0,16,16"
+                  Background="#0a0a0a"
+                  BorderBrush="{StaticResource BorderBrush}"
+                  BorderThickness="1"
+                  CornerRadius="6">
+            <ScrollViewer x:Name="LogScroller"
+                          VerticalScrollBarVisibility="Auto"
+                          Padding="12">
+              <TextBlock x:Name="LogOutput"
+                         FontFamily="Cascadia Code, Consolas, Courier New"
+                         FontSize="12"
+                         Foreground="{StaticResource TextBrush}"
+                         TextWrapping="Wrap"/>
+            </ScrollViewer>
+          </Border>
+        </Grid>
+
+        <!-- ── PAGE 3: Success ──────────────────────────────────────────────── -->
+        <Grid x:Name="PageSuccess" Visibility="Collapsed">
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                      MaxWidth="460">
+            <TextBlock Text="✓" FontSize="48" Foreground="{StaticResource SuccessBrush}"
+                       TextAlignment="Center" Margin="0,0,0,16"/>
+            <TextBlock Text="Breach Tower is running!"
+                       FontSize="18" FontWeight="Bold"
+                       TextAlignment="Center" Margin="0,0,0,24"/>
+
+            <Border Background="{StaticResource PanelBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="8"
+                    Padding="20,16" Margin="0,0,0,24">
+              <StackPanel>
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="100"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="Dashboard" Foreground="{StaticResource DimBrush}" FontSize="12"/>
+                  <TextBlock x:Name="LblDashUrl" Grid.Column="1"
+                             Text="http://localhost:3000"
+                             Foreground="{StaticResource InfoBrush}"
+                             FontSize="12" FontFamily="Consolas"
+                             Cursor="Hand" MouseLeftButtonUp="OpenDashboard"/>
+                </Grid>
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="100"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="API Docs" Foreground="{StaticResource DimBrush}" FontSize="12"/>
+                  <TextBlock Grid.Column="1"
+                             Text="http://localhost:8000/docs"
+                             Foreground="{StaticResource InfoBrush}"
+                             FontSize="12" FontFamily="Consolas"
+                             Cursor="Hand" MouseLeftButtonUp="OpenApiDocs"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <TextBlock Text="Next steps:" FontSize="12" FontWeight="SemiBold"
+                       Margin="0,0,0,8"/>
+            <TextBlock Foreground="{StaticResource DimBrush}" FontSize="12"
+                       TextWrapping="Wrap" Margin="0,0,0,4"
+                       Text="1. Open the dashboard and register your admin account"/>
+            <TextBlock Foreground="{StaticResource DimBrush}" FontSize="12"
+                       TextWrapping="Wrap" Margin="0,0,0,4"
+                       Text="2. Add your API keys in Settings › Intelligence Sources"/>
+            <TextBlock Foreground="{StaticResource DimBrush}" FontSize="12"
+                       TextWrapping="Wrap" Margin="0,0,0,4"
+                       Text="3. Add your domains and emails in Targets"/>
+            <TextBlock Foreground="{StaticResource DimBrush}" FontSize="12"
+                       TextWrapping="Wrap" Margin="0,0,0,28"
+                       Text="4. Run your first scan"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+              <Button Content="Open Dashboard"
+                      Style="{StaticResource PrimaryButton}"
+                      Click="OpenDashboardBtn_Click" Margin="0,0,8,0"/>
+              <Button Content="Close"
+                      Style="{StaticResource SecondaryButton}"
+                      Click="CloseBtn_Click"/>
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+
+        <!-- ── PAGE 4: Error ────────────────────────────────────────────────── -->
+        <Grid x:Name="PageError" Visibility="Collapsed">
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                      MaxWidth="480">
+            <TextBlock Text="✕" FontSize="48" Foreground="{StaticResource ErrorBrush}"
+                       TextAlignment="Center" Margin="0,0,0,16"/>
+            <TextBlock Text="Installation failed"
+                       FontSize="18" FontWeight="Bold"
+                       TextAlignment="Center" Margin="0,0,0,16"/>
+            <TextBlock x:Name="LblErrorMsg"
+                       TextWrapping="Wrap" TextAlignment="Center"
+                       Foreground="{StaticResource DimBrush}" FontSize="12"
+                       Margin="0,0,0,28"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+              <Button Content="← Back"
+                      Style="{StaticResource SecondaryButton}"
+                      Click="ErrorBack_Click" Margin="0,0,8,0"/>
+              <Button Content="Close"
+                      Style="{StaticResource SecondaryButton}"
+                      Click="CloseBtn_Click"/>
+            </StackPanel>
+          </StackPanel>
+        </Grid>
+
+      </Grid>
+
+      <!-- ── Footer: progress bar ─────────────────────────────────────────── -->
+      <Border Grid.Row="2"
+              Background="{StaticResource PanelBrush}"
+              BorderBrush="{StaticResource BorderBrush}"
+              BorderThickness="0,1,0,0"
+              Padding="24,10">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="8"/>
+          </Grid.RowDefinitions>
+          <Grid Grid.Row="0" Margin="0,0,0,6">
+            <TextBlock x:Name="LblProgressText"
+                       Text="" FontSize="11"
+                       Foreground="{StaticResource DimBrush}"
+                       HorizontalAlignment="Left"/>
+            <TextBlock x:Name="LblProgressPct"
+                       Text="" FontSize="11"
+                       Foreground="{StaticResource DimBrush}"
+                       HorizontalAlignment="Right"/>
+          </Grid>
+          <Border Grid.Row="1"
+                  Background="#1e1e1e" CornerRadius="4">
+            <ProgressBar x:Name="MainProgress"
+                         Minimum="0" Maximum="100" Value="0"
+                         Height="8"
+                         Background="Transparent"
+                         Foreground="{StaticResource AccentBrush}"
+                         BorderThickness="0"/>
+          </Border>
+        </Grid>
+      </Border>
+
+    </Grid>
+  </Grid>
+</Window>
