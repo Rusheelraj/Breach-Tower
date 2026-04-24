@@ -1,0 +1,101 @@
+name: Build Windows Installer
+
+on:
+  push:
+    tags:
+      - "v*"          # trigger on version tags: v1.0.0, v1.2.3, etc.
+  workflow_dispatch:  # allow manual trigger from the Actions tab
+
+permissions:
+  contents: write   # needed to upload release assets
+
+jobs:
+  build:
+    name: Build breach-tower-installer.exe
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: installer/go.sum
+
+      - name: Download Go dependencies
+        working-directory: installer
+        run: go mod download
+
+      - name: Install goversioninfo (embeds version + UAC manifest)
+        run: go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+
+      - name: Write versioninfo.json
+        working-directory: installer
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          # Strip leading 'v' and split into parts (default 1.0.0 for manual runs)
+          $ver = $tag -replace '^v', ''
+          if (-not $ver) { $ver = "1.0.0" }
+          $parts = ($ver + ".0.0.0") -split '\.' | Select-Object -First 4
+          $major, $minor, $patch, $build = $parts
+
+          $json = @{
+            FixedFileInfo = @{
+              FileVersion    = @{ Major = [int]$major; Minor = [int]$minor; Patch = [int]$patch; Build = [int]$build }
+              ProductVersion = @{ Major = [int]$major; Minor = [int]$minor; Patch = [int]$patch; Build = [int]$build }
+            }
+            StringFileInfo = @{
+              Comments        = ""
+              CompanyName     = "Rusheelraj"
+              FileDescription = "Breach Tower Windows Installer"
+              FileVersion     = $ver
+              InternalName    = "breach-tower-installer"
+              LegalCopyright  = "Private — All Rights Reserved"
+              OriginalFilename = "breach-tower-installer.exe"
+              ProductName     = "Breach Tower"
+              ProductVersion  = $ver
+            }
+            VarFileInfo = @{ Translation = @{ LangID = 0x0409; CharsetID = 0x04B0 } }
+            IconPath     = ""
+            ManifestPath = "breach-tower-installer.manifest"
+          } | ConvertTo-Json -Depth 10
+          $json | Out-File -FilePath versioninfo.json -Encoding utf8
+
+      - name: Generate resource.syso (version info + UAC manifest)
+        working-directory: installer
+        run: goversioninfo -o resource.syso versioninfo.json
+
+      - name: Build installer exe
+        working-directory: installer
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "0"
+        run: |
+          go build -ldflags="-s -w" -o breach-tower-installer.exe .
+
+      - name: Upload exe as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: breach-tower-installer-windows-amd64
+          path: installer/breach-tower-installer.exe
+          retention-days: 30
+
+      - name: Attach exe to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installer/breach-tower-installer.exe
+          body: |
+            ## Breach Tower Installer
+
+            **Windows:** Download `breach-tower-installer.exe` and double-click to install.
+            A UAC prompt will appear — click **Yes** to grant Administrator access.
+
+            **Linux:**
+            ```bash
+            cd /tmp && sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Rusheelraj/Breach-Tower/main/install.sh)"
+            ```
