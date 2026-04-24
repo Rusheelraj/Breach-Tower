@@ -126,28 +126,63 @@ function Install-DockerIfMissing {
     Write-Info "Installing Docker Desktop via winget (this may take several minutes)..."
     winget install --id Docker.DockerDesktop -e --silent --accept-package-agreements --accept-source-agreements
 
-    Write-Warn "Docker Desktop has been installed."
-    Write-Warn "You must START Docker Desktop before continuing."
-    Write-Host ""
-    Write-Host "  1. Launch Docker Desktop from the Start menu" -ForegroundColor Yellow
-    Write-Host "  2. Wait for it to show 'Docker Desktop is running' in the system tray" -ForegroundColor Yellow
-    Write-Host "  3. Re-run this installer" -ForegroundColor Yellow
-    Write-Host ""
-    Die "Please start Docker Desktop and re-run the installer."
+    Write-Success "Docker Desktop installed. Launching it now..."
+    Start-DockerDesktop
+}
+
+# -- Start Docker Desktop and wait for daemon ----------------------------------
+function Start-DockerDesktop {
+    # Find the Docker Desktop executable
+    $dockerExe = @(
+        "$env:ProgramFiles\Docker\Docker\Docker Desktop.exe",
+        "${env:ProgramFiles(x86)}\Docker\Docker\Docker Desktop.exe"
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+    if (-not $dockerExe) {
+        Die "Docker Desktop executable not found. Please launch Docker Desktop manually and re-run."
+    }
+
+    # Check if Docker Desktop process is already running
+    $running = Get-Process -Name "Docker Desktop" -ErrorAction SilentlyContinue
+    if (-not $running) {
+        Write-Info "Starting Docker Desktop..."
+        Start-Process $dockerExe
+    } else {
+        Write-Info "Docker Desktop process is already running. Waiting for daemon..."
+    }
+
+    # Poll until docker info succeeds (daemon ready), timeout 120s
+    Write-Info "Waiting for Docker daemon to become ready (this can take up to 60 seconds)..."
+    $timeout = 120
+    $elapsed = 0
+    $interval = 5
+    while ($elapsed -lt $timeout) {
+        Start-Sleep -Seconds $interval
+        $elapsed += $interval
+        $result = docker info 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Success "Docker daemon is ready."
+            return
+        }
+        if ($elapsed % 20 -eq 0) {
+            Write-Info "Still waiting for Docker... ($elapsed/$timeout s)"
+        }
+    }
+    Die "Docker daemon did not start within $timeout seconds. Try launching Docker Desktop manually and re-run."
 }
 
 # -- Verify Docker is running --------------------------------------------------
 function Assert-DockerRunning {
     Write-Info "Checking Docker daemon..."
-    try {
-        $null = docker info 2>&1
-        if ($LASTEXITCODE -ne 0) { throw }
+    $result = docker info 2>&1
+    if ($LASTEXITCODE -eq 0) {
         Write-Success "Docker daemon is running."
-    } catch {
-        Write-Err "Docker daemon is not running."
-        Write-Warn "Please start Docker Desktop, wait for it to fully load, then re-run this installer."
-        Die "Docker daemon not available."
+        return
     }
+
+    # Not running — try to start it automatically
+    Write-Warn "Docker daemon is not running. Attempting to start Docker Desktop..."
+    Start-DockerDesktop
 }
 
 # -- Check Docker Compose ------------------------------------------------------
