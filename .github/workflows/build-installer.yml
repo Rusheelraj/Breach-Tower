@@ -30,45 +30,49 @@ jobs:
           go mod tidy
           go mod download
 
-      - name: Install goversioninfo (embeds version + UAC manifest)
-        run: go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
-
-      - name: Write versioninfo.json
-        working-directory: installer
+      - name: Resolve version string
+        id: version
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
-          # Strip leading 'v' and split into parts (default 1.0.0 for manual runs)
           $ver = $tag -replace '^v', ''
-          if (-not $ver) { $ver = "1.0.0" }
-          $parts = ($ver + ".0.0.0") -split '\.' | Select-Object -First 4
-          $major, $minor, $patch, $build = $parts
+          # workflow_dispatch has ref_name = "main" — default to 1.0.0
+          if (-not $ver -or $ver -notmatch '^\d') { $ver = "1.0.0" }
+          echo "VERSION=$ver" >> $env:GITHUB_OUTPUT
 
-          $json = @{
+      - name: Install goversioninfo (embeds version info + UAC manifest)
+        run: go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
+
+      - name: Generate versioninfo.json and resource.syso
+        working-directory: installer
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.version.outputs.VERSION }}"
+          $parts = ($ver + ".0.0.0") -split '\.' | Select-Object -First 4
+          $fi = [PSCustomObject]@{
+            Major = [int]$parts[0]; Minor = [int]$parts[1]
+            Patch = [int]$parts[2]; Build = [int]$parts[3]
+          }
+          $json = [ordered]@{
             FixedFileInfo = @{
-              FileVersion    = @{ Major = [int]$major; Minor = [int]$minor; Patch = [int]$patch; Build = [int]$build }
-              ProductVersion = @{ Major = [int]$major; Minor = [int]$minor; Patch = [int]$patch; Build = [int]$build }
+              FileVersion    = $fi
+              ProductVersion = $fi
             }
             StringFileInfo = @{
-              Comments        = ""
-              CompanyName     = "Rusheelraj"
-              FileDescription = "Breach Tower Windows Installer"
-              FileVersion     = $ver
-              InternalName    = "breach-tower-installer"
-              LegalCopyright  = "Private — All Rights Reserved"
+              FileDescription  = "Breach Tower Windows Installer"
+              FileVersion      = $ver
+              InternalName     = "breach-tower-installer"
+              LegalCopyright   = "Private - All Rights Reserved"
               OriginalFilename = "breach-tower-installer.exe"
-              ProductName     = "Breach Tower"
-              ProductVersion  = $ver
+              ProductName      = "Breach Tower"
+              ProductVersion   = $ver
             }
-            VarFileInfo = @{ Translation = @{ LangID = 0x0409; CharsetID = 0x04B0 } }
+            VarFileInfo  = @{ Translation = @{ LangID = 1033; CharsetID = 1200 } }
             IconPath     = ""
             ManifestPath = "breach-tower-installer.manifest"
-          } | ConvertTo-Json -Depth 10
-          $json | Out-File -FilePath versioninfo.json -Encoding utf8
-
-      - name: Generate resource.syso (version info + UAC manifest)
-        working-directory: installer
-        run: goversioninfo -o resource.syso versioninfo.json
+          }
+          $json | ConvertTo-Json -Depth 10 | Out-File -FilePath versioninfo.json -Encoding utf8NoBOM
+          goversioninfo -o resource.syso versioninfo.json
 
       - name: Build installer exe
         working-directory: installer
