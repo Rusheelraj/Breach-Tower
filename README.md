@@ -141,7 +141,7 @@ Run from an **elevated (Administrator) PowerShell** prompt:
 
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force
-irm https://raw.githubusercontent.com/Rusheelraj/Breach-Tower/main/install.ps1 | iex
+irm "https://raw.githubusercontent.com/Rusheelraj/Breach-Tower/main/install.ps1?$(Get-Date -UFormat %s)" | iex
 ```
 
 > **Requirements:** Windows 10 20H1 (build 19041) or later. The installer uses [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) to install Git and Docker Desktop automatically, and WSL2 for the Docker backend.

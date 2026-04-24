@@ -2,7 +2,9 @@
 #  Breach Tower -- One-liner Installer for Windows (PowerShell)
 #  Run from an elevated PowerShell prompt:
 #    Set-ExecutionPolicy Bypass -Scope Process -Force
-#    irm https://raw.githubusercontent.com/Rusheelraj/Breach-Tower/main/install.ps1 | iex
+#    irm "https://raw.githubusercontent.com/Rusheelraj/Breach-Tower/main/install.ps1?$(Get-Date -UFormat %s)" | iex
+#
+#  The ?timestamp suffix busts the GitHub raw CDN cache so you always get the latest version.
 #
 #  Or if running locally:
 #    PowerShell -ExecutionPolicy Bypass -File install.ps1
