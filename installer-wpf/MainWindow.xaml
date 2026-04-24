@@ -94,24 +94,154 @@
       <Grid x:Name="PageHost" Grid.Row="1">
 
         <!-- ── PAGE 0: Welcome ─────────────────────────────────────────────── -->
-        <Grid x:Name="PageWelcome" Visibility="Visible">
-          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
-                      MaxWidth="440">
-            <TextBlock Text="Self-hosted dark web" FontSize="13"
-                       Foreground="{StaticResource DimBrush}" TextAlignment="Center"/>
-            <TextBlock Text="threat intelligence" FontSize="13"
-                       Foreground="{StaticResource DimBrush}" TextAlignment="Center"/>
-            <TextBlock Text="for small businesses." FontSize="13"
-                       Foreground="{StaticResource DimBrush}" TextAlignment="Center"
-                       Margin="0,0,0,32"/>
+        <ScrollViewer x:Name="PageWelcome" Visibility="Visible"
+                      VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="32,28,32,28" MaxWidth="560">
 
-            <TextBlock TextWrapping="Wrap" TextAlignment="Center"
-                       Foreground="{StaticResource DimBrush}" FontSize="12"
-                       Margin="0,0,0,32"
-                       Text="This installer will set up Git, Docker Desktop, clone the repository, generate your configuration, and start all services automatically."/>
+            <!-- Tagline -->
+            <TextBlock Text="Self-hosted dark web threat intelligence for small businesses."
+                       FontSize="13" Foreground="{StaticResource DimBrush}"
+                       TextWrapping="Wrap" Margin="0,0,0,24"/>
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,16">
-              <Button x:Name="BtnInstall" Content="Install Breach Tower"
+            <!-- Prerequisites box -->
+            <Border Background="{StaticResource PanelBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="8"
+                    Padding="20,16" Margin="0,0,0,20">
+              <StackPanel>
+                <TextBlock Text="PREREQUISITES" FontSize="10" FontWeight="Bold"
+                           Foreground="{StaticResource DimBrush}"
+                           Margin="0,0,0,12"/>
+
+                <!-- Git -->
+                <Grid Margin="0,0,0,10">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock x:Name="IconGit" Text="●" FontSize="10"
+                             Foreground="{StaticResource DimBrush}"
+                             VerticalAlignment="Center"/>
+                  <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                    <TextBlock Text="Git for Windows" FontSize="13" FontWeight="SemiBold"/>
+                    <TextBlock Text="Required to clone the repository."
+                               FontSize="11" Foreground="{StaticResource DimBrush}"/>
+                  </StackPanel>
+                  <TextBlock x:Name="StatusGit" Grid.Column="2"
+                             Text="Checking..." FontSize="11"
+                             Foreground="{StaticResource DimBrush}"
+                             VerticalAlignment="Center"/>
+                </Grid>
+
+                <!-- Docker -->
+                <Grid Margin="0,0,0,10">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock x:Name="IconDocker" Text="●" FontSize="10"
+                             Foreground="{StaticResource DimBrush}"
+                             VerticalAlignment="Center"/>
+                  <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                    <TextBlock Text="Docker Desktop" FontSize="13" FontWeight="SemiBold"/>
+                    <TextBlock Text="Required to run all services in containers."
+                               FontSize="11" Foreground="{StaticResource DimBrush}"/>
+                  </StackPanel>
+                  <TextBlock x:Name="StatusDocker" Grid.Column="2"
+                             Text="Checking..." FontSize="11"
+                             Foreground="{StaticResource DimBrush}"
+                             VerticalAlignment="Center"/>
+                </Grid>
+
+                <!-- WSL2 -->
+                <Grid Margin="0,0,0,10">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock x:Name="IconWsl" Text="●" FontSize="10"
+                             Foreground="{StaticResource DimBrush}"
+                             VerticalAlignment="Center"/>
+                  <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                    <TextBlock Text="WSL2" FontSize="13" FontWeight="SemiBold"/>
+                    <TextBlock Text="Required backend for Docker Desktop on Windows."
+                               FontSize="11" Foreground="{StaticResource DimBrush}"/>
+                  </StackPanel>
+                  <TextBlock x:Name="StatusWsl" Grid.Column="2"
+                             Text="Checking..." FontSize="11"
+                             Foreground="{StaticResource DimBrush}"
+                             VerticalAlignment="Center"/>
+                </Grid>
+
+                <!-- winget -->
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  <TextBlock x:Name="IconWinget" Text="●" FontSize="10"
+                             Foreground="{StaticResource DimBrush}"
+                             VerticalAlignment="Center"/>
+                  <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                    <TextBlock Text="winget (App Installer)" FontSize="13" FontWeight="SemiBold"/>
+                    <TextBlock Text="Used to install Git and Docker automatically if missing."
+                               FontSize="11" Foreground="{StaticResource DimBrush}"/>
+                  </StackPanel>
+                  <TextBlock x:Name="StatusWinget" Grid.Column="2"
+                             Text="Checking..." FontSize="11"
+                             Foreground="{StaticResource DimBrush}"
+                             VerticalAlignment="Center"/>
+                </Grid>
+
+              </StackPanel>
+            </Border>
+
+            <!-- Note -->
+            <TextBlock TextWrapping="Wrap" FontSize="12"
+                       Foreground="{StaticResource DimBrush}"
+                       Margin="0,0,0,24">
+              <Run Text="Missing items will be installed automatically. "/>
+              <Run Text="If Git or Docker Desktop are already installed, they will be detected and skipped." />
+            </TextBlock>
+
+            <!-- Disk / OS requirements -->
+            <Border Background="#111" BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="6"
+                    Padding="16,12" Margin="0,0,0,24">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                  <TextBlock Text="SYSTEM REQUIREMENTS" FontSize="10" FontWeight="Bold"
+                             Foreground="{StaticResource DimBrush}" Margin="0,0,0,8"/>
+                  <TextBlock Text="Windows 10 (build 19041+) or Windows 11"
+                             FontSize="11" Foreground="{StaticResource DimBrush}"/>
+                  <TextBlock Text="4 GB RAM minimum (8 GB recommended)"
+                             FontSize="11" Foreground="{StaticResource DimBrush}"/>
+                  <TextBlock Text="10 GB free disk space"
+                             FontSize="11" Foreground="{StaticResource DimBrush}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                  <TextBlock Text="INSTALL LOCATION" FontSize="10" FontWeight="Bold"
+                             Foreground="{StaticResource DimBrush}" Margin="0,0,0,8"/>
+                  <TextBlock Text="C:\breach-tower"
+                             FontSize="11" FontFamily="Consolas"
+                             Foreground="{StaticResource InfoBrush}"/>
+                  <TextBlock Text="All data stored here." Margin="0,4,0,0"
+                             FontSize="11" Foreground="{StaticResource DimBrush}"/>
+                </StackPanel>
+              </Grid>
+            </Border>
+
+            <!-- Action buttons -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+              <Button x:Name="BtnInstall" Content="Install Breach Tower  →"
                       Style="{StaticResource PrimaryButton}"
                       Click="BtnInstall_Click" Margin="0,0,8,0"/>
               <Button x:Name="BtnUpdate" Content="Update"
@@ -122,11 +252,8 @@
                       Click="BtnUninstall_Click"/>
             </StackPanel>
 
-            <TextBlock Text="Installs to  C:\breach-tower"
-                       FontSize="11" Foreground="{StaticResource DimBrush}"
-                       TextAlignment="Center" FontFamily="Consolas"/>
           </StackPanel>
-        </Grid>
+        </ScrollViewer>
 
         <!-- ── PAGE 1: Configuration form ──────────────────────────────────── -->
         <ScrollViewer x:Name="PageConfig" Visibility="Collapsed"

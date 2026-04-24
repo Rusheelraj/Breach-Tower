@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -38,11 +39,208 @@ public partial class MainWindow : Window
         ["text"]    = new SolidColorBrush(Color.FromRgb(0xf0, 0xf0, 0xf0)),  // white
     };
 
+    // ── Prerequisite colours ──────────────────────────────────────────────────
+    private static readonly SolidColorBrush BrushOk      = new(Color.FromRgb(0x22, 0xc5, 0x5e));
+    private static readonly SolidColorBrush BrushWarn    = new(Color.FromRgb(0xf5, 0x9e, 0x0b));
+    private static readonly SolidColorBrush BrushMissing = new(Color.FromRgb(0xef, 0x44, 0x44));
+
     public MainWindow()
     {
         InitializeComponent();
         BuildStepList();
         ShowPage(0);
+        _ = CheckPrerequisitesAsync();
+    }
+
+    // ── Prerequisite detection ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Runs each check on a background thread so the window paints immediately,
+    /// then marshals results back to the UI thread.
+    /// </summary>
+    private async Task CheckPrerequisitesAsync()
+    {
+        var results = await Task.Run(() =>
+        {
+            return new
+            {
+                Git    = ProbeGit(),
+                Docker = ProbeDocker(),
+                Wsl    = ProbeWsl(),
+                Winget = ProbeWinget(),
+            };
+        });
+
+        ApplyPrereqStatus(IconGit,    StatusGit,    results.Git);
+        ApplyPrereqStatus(IconDocker, StatusDocker, results.Docker);
+        ApplyPrereqStatus(IconWsl,    StatusWsl,    results.Wsl);
+        ApplyPrereqStatus(IconWinget, StatusWinget, results.Winget);
+    }
+
+    private record PrereqResult(bool Found, string Label, bool Required);
+
+    private static PrereqResult ProbeGit()
+    {
+        // Check PATH first
+        if (IsOnPath("git"))
+        {
+            var ver = RunAndCapture("git", "--version");
+            var label = ver.StartsWith("git version ") ? ver.Replace("git version ", "v") : "Installed";
+            return new(true, label.Trim(), true);
+        }
+        // Common fallback paths
+        string[] fallbacks =
+        [
+            @"C:\Program Files\Git\cmd\git.exe",
+            @"C:\Program Files (x86)\Git\cmd\git.exe",
+        ];
+        if (fallbacks.Any(File.Exists))
+            return new(true, "Installed", true);
+
+        return new(false, "Not found — will be installed", true);
+    }
+
+    private static PrereqResult ProbeDocker()
+    {
+        if (IsOnPath("docker"))
+        {
+            var ver = RunAndCapture("docker", "--version");
+            // "Docker version 24.0.x, build ..."
+            var label = ver.Contains("Docker version")
+                ? ver.Split(',')[0].Replace("Docker version ", "v").Trim()
+                : "Installed";
+            return new(true, label, true);
+        }
+        string[] fallbacks =
+        [
+            @"C:\Program Files\Docker\Docker\resources\bin\docker.exe",
+            @"C:\Program Files\Docker\Docker\Docker Desktop.exe",
+        ];
+        if (fallbacks.Any(File.Exists))
+            return new(true, "Installed", true);
+
+        return new(false, "Not found — will be installed", true);
+    }
+
+    private static PrereqResult ProbeWsl()
+    {
+        // wsl --status exits 0 if WSL is available; on older builds it may not exist
+        try
+        {
+            var info = new ProcessStartInfo("wsl", "--status")
+            {
+                UseShellExecute        = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError  = true,
+                CreateNoWindow         = true,
+            };
+            using var p = Process.Start(info);
+            if (p == null) return new(false, "Not detected — will be configured", false);
+            p.WaitForExit(5_000);
+            if (p.ExitCode == 0)
+                return new(true, "WSL2 available", false);
+        }
+        catch { /* wsl.exe not present */ }
+
+        // Check via registry or wslapi.dll as a lighter-weight probe
+        var wslExe = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System), "wsl.exe");
+        if (File.Exists(wslExe))
+            return new(true, "WSL available", false);
+
+        return new(false, "Not detected — will be configured", false);
+    }
+
+    private static PrereqResult ProbeWinget()
+    {
+        // Try PATH first
+        if (IsOnPath("winget"))
+        {
+            var ver = RunAndCapture("winget", "--version");
+            return new(true, ver.Trim().Length > 0 ? ver.Trim() : "Installed", false);
+        }
+        // Per-user AppData stubs (the real way to find it when running elevated)
+        var usersRoot = Path.GetDirectoryName(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))
+                        ?? @"C:\Users";
+        try
+        {
+            foreach (var userDir in Directory.EnumerateDirectories(usersRoot))
+            {
+                var stub = Path.Combine(userDir, @"AppData\Local\Microsoft\WindowsApps\winget.exe");
+                if (File.Exists(stub))
+                    return new(true, "Installed", false);
+            }
+        }
+        catch { /* permission error scanning other users */ }
+
+        return new(false, "Not found — installer will attempt to install", false);
+    }
+
+    private void ApplyPrereqStatus(TextBlock icon, TextBlock status, PrereqResult result)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            if (result.Found)
+            {
+                icon.Text       = "✓";
+                icon.Foreground = BrushOk;
+                status.Text       = result.Label;
+                status.Foreground = BrushOk;
+            }
+            else if (result.Required)
+            {
+                icon.Text       = "●";
+                icon.Foreground = BrushWarn;
+                status.Text       = result.Label;
+                status.Foreground = BrushWarn;
+            }
+            else
+            {
+                icon.Text       = "●";
+                icon.Foreground = BrushWarn;
+                status.Text       = result.Label;
+                status.Foreground = BrushWarn;
+            }
+        });
+    }
+
+    // ── Small process helpers ─────────────────────────────────────────────────
+
+    private static bool IsOnPath(string exe)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo(exe, "--version")
+            {
+                UseShellExecute        = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError  = true,
+                CreateNoWindow         = true,
+            };
+            using var p = Process.Start(psi);
+            p?.WaitForExit(3_000);
+            return true;
+        }
+        catch { return false; }
+    }
+
+    private static string RunAndCapture(string exe, string args)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo(exe, args)
+            {
+                UseShellExecute        = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError  = true,
+                CreateNoWindow         = true,
+            };
+            using var p = Process.Start(psi)!;
+            var output = p.StandardOutput.ReadToEnd();
+            p.WaitForExit(5_000);
+            return output.Trim();
+        }
+        catch { return string.Empty; }
     }
 
     // ── Step sidebar ─────────────────────────────────────────────────────────
